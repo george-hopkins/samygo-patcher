@@ -28,7 +28,8 @@
 #version = 0.08 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2004.0 and 2008.2
 #version = 0.09 #Added  VideoAR Fix v1 for T-CHL7DEUC Firmware version 2005.0
 #version = 0.10 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2009.0
-version = 0.11 #Added Telnet or Advanced Mode switch.
+#version = 0.11 #Added Telnet or Advanced Mode switch.
+version = 0.12 #Fixed not make encryption if no VideoAR fix situation.
 
 import os
 import sys
@@ -256,9 +257,7 @@ def SamyGO( in_dir ):
 	print
 	pv = patch_VideoAR( decfile, md5digg )
 	pt = patch_Telnet( decfile )
-	pt = 0
-	
-	if( (pt or pv) and pv != -1 ):	#if Telnet or Video patch applied 
+	if (pt or pv) and (pv != -1):	#if Telnet or Video patch applied 
 		crc = calculate_crc( decfile )
 		validfile = open(realdir + '/image/validinfo.txt', 'r+')
 		loc = validfile.read().find('exe.img_')
@@ -275,6 +274,8 @@ def SamyGO( in_dir ):
 		os.rename( decfile_new, targetfile )
 		print 'Operation successfully completed.'
 		print 'Now you can flash your TV with ' + in_dir +' directory.'
+	else:
+		print "No Change applied, Aborting..."
 
 print "SamyGo Firmware Patcher v" + str(version) + " (c) 2009 Erdem U. Altinyurt"
 print
