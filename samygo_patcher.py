@@ -37,7 +37,8 @@
 #version = 0.17 #Placed VideoARFix switch. Firmware ID.Shown on Patch screen. exeDSP extracted with Firmware Name. Fixed MD5 hex diggest reporting on slow xor enigne.
 #version = 0.18 #Fixed T-CHL5DEUC's Windows patch process.
 #version = 0.19 #Changed XOR key retrieve way. Now ket readed directly from exeDSP... Compatibility for T-CHEAEAC 2005 FW.for LAxxB650T1R
-version = '0.20' #Added Auto Big & Colorful Subtitle Patch, Modulerized code flow with Extract_exeDSP & Inject_exeDSP functions. Added VideoAR Fix v1 for CI+ devices.
+#version = '0.20' #Added Auto Big & Colorful Subtitle Patch, Modulerized code flow with Extract_exeDSP & Inject_exeDSP functions. Added VideoAR Fix v1 for CI+ devices.
+version = '0.21' #Added A Series T-RBYDEUC 1013.1 VideoARFix by tom_van & Fixed fat16 FAT finding.
 
 import os
 import sys
@@ -330,6 +331,44 @@ def patch( FileTarget, md5dig ):
 				print 'xdelta package is not installed to your system, please install and try again.'
 				return 0
 
+	elif md5dig == '2f2b172b0ce35e40326ab1594c131f15':
+		print 'Firmware: T-RBYDEUC version 1013.1 for A Series.'
+		exeDSPFileName = Extract_exeDSP( FileTarget )
+		ifile = open( exeDSPFileName, "r+b" )
+		patch = [( 0x016f43c, '862fe62f224fb87fb87ff36ee36110714211e362107200e11a12e362507200e11512e362507200e11612e36250729f911312e36250729c911412e362107200e11b12e362107200e11c12e362107200e11d12e362107200e11e12e362107200e11f12e362507200e11012e362507200e11112e362507200e112123fd11262e36110712d113dd11262e36110712e113cd2e36110711251122239d112600188018916a1090037d1136437d10b410900e36110711d505a402df208e0ec3004702af03bf01d5111410b8930c709f309f208e0ec3009f508f4fc7020f404704af05bf008e0ec3009f308f2fc70bdf210e05a01160ee36110711e525a422df2047e2afe3bfe1e511141098920c709f309f2e9f5e8f4fc7e20f4047e4afe5bfee9f3e8f2fc7ebdf20df12592ec321ad16641fc7110e0e6f213f22cf11af2e361507113505a402df2e361507114525a422df11291ec312cf313f33cf11af1e36110711d5118211a89e36110711e51182114a009008007380488008c000c02210210022102707901023cf1490140cb4101000000000000f04194f49901188be362107200e11f12e362507200e11012e3625072e361507113511112e3625072e36150711451121241d16641fc71f0a009007a91ec317992ec3218f228f115f2018939a00900e362107200e11f12e36150711457e36150711352e36110711e5117021a01e362107232d313642d550b43090073610831e362507201411012e3625072e361507113511112e36150711352e36110711e5117021a03e3675077e361107123d233641d550b42090002171fd16641fc71ada00900e36150711357e36150711452e36110711d5117021a01e362107217d313642e550b43090073610831e362107201411f12e362507200e11012e36150711452e36110711d5117021a03e3675077e36110710ad233641e550b4209000117e3625072e36150711451121203d16641fc7174a0090088008c0098f49901801d3f0114d112600288f38b13d1136413d10b410900e36110711d5118210489e36110711e5118211c8be362107200e11f12e362507200e11012e3625072e361507113511112e3625072e36150711451121245a009000900707901025cf1490140cb4101e361507113521fe11b6123601d4003612c312141136399d112621fe11b612367', '862f4362962f03e5a62f0fe1b62fc62fd62fe62f224f33d7e87f33d6726033d45d40626a4e0332d0173a322f0269008910ea08e88739028909e90aa023604a9bb03a068f2360479cc039038f02884499236002880b8f02e33d91173a008b136a3b911739008b1369a36850a09360fd723632078d037203ed1ed02f93dd422e051ca009001cd22260094009400fc9fe703630078d027003e118de1f931d40ee050ca009001b93303a078fa36518944039038f9363159501a0090093630d960a9267050fd71a0127031a0447311a8b0b47236820a009008007400438048403d00240020003e80121020c02210260032102100221025cf75600d81d210264f75600801d3f0113640b4733650368636071911738008b13686d95e1e36c928835536c3d4c5c3c214c2730018f036d236d32d02366d836f36e636b147e3d4bf2646c3be365f3660b400476214b0820058de3652ad02bd40b400900e3652adef264f3660b4e0c760820038924d027d40b40090026def366f26404760b4e00e5082003891ed023d40b40090022def366f2640c760b4e00e50820038918d01fd40b40090016def07f1dd29367822f22651cd4d11fc21fb31f0b4ea366fc7fa367922f00e518d9f554c11fb21f831fd41f0b4900e60820038d147f14d40b4e090000e0187f264ff66ef66df66cf66bf66af669f6680b0009008007380468619a00409d41017cf6560008659a009cf6560050809a00c0f656006c7d9a00e0f65600d81d210204f75600587e9a003cf75600806003d1002101d12b410900e099b000d81d210253545649445f476574496e70757457696e646f774d6f6465204572726f720a0053545649445f4765744f757470757457696e646f774d6f6465204572726f720a0000000053545649445f536574496e70757457696e646f774d6f6465204572726f720a0053545649445f5365744f757470757457696e646f774d6f6465204572726f720a00000000506174636865642053657453697a65204d504547204152202530782c20496e2025647825642c204f75742025647825642d25642d25640a0053545649445f53657453697a65204572726f720a0000000032002e00320031003a0031000000000000000000460000000000000047000000b00400001d0000004006000019000000c507000054f75600' ),
+				( 0x033d334, '090009000900090009000900', '01d000e102a01220d81d2102' ),
+				( 0x0340320, '4060', '4020' ),
+				( 0x0340470, '40d37300', '34d37300' ),
+				( 0x0704e8c, 'e099b000', '68f65600' ),
+				( 0x0916520, '862f73e5e62f01e7224f1bd0fc7ff36ee368037819d40b40836608200a8d00e080611c600188018d0288198914d015d40b4046e5047ee36f264ff66ef6680b00090009000900090009000900090009000900090009000900090009000900090007d008d40b4047e5047ee36f', '862f01e3224f13d0fc7ff368037812d473e5302883660b4001e7806004e2ff700c612631028f102800e4402880620bd52c670bd608477c375c3771556735048d536008d808d40b480900047f264ff6680b000900005d400024cd080264f75600ffff3f00c0837b0060fb0a02' ),
+				( 0x09167a0, '862f00e1e62f73e5224f2fd0e87ff36ee36817782dd4102883660b4001e708202e8980611c6001883a8d0288488d01e127d073e525d483660b4001e70820208d00e024d01ee53d9123d4121e0b40e3680820028d00e136910c3120d0e364111800e1131800e514180b4000e601e0187ee36f264ff66ef6680b0009000900090000e0187ee36f264ff66ef6680b0009000900090009000900090009000900090002e1c5af10280900090009000900090009000900', '862f01e7962f5369a62f01ea224f23d0e87ff3681778a02873e521d40b4083660820318993600488088f8061ff711c6118210a8f102805e207a0202801711c6405e33634018f4028a02816d873e514d4f36601e70b4817760820168d00e012d912d40b491ee50820018915955c3010da00e21296f364011f00e5621f241f231f0b4a00e601a001e000e0187f264ff66af669f6680b0009004c147204005d400024cd0802605c400020457b0040cd0802203e5000' )]
+
+		read_pass = True
+		for i in patch:	#this is unneccessary round, 1-1 checking for each byte if its correct.
+			ifile.seek( i[0] )
+			Readed = ifile.read( len( binascii.unhexlify( i[1] ) ) )
+			if binascii.unhexlify(i[1]) != Readed:
+				read_pass = False
+				print "Error on reading byte: %X" %  i[0]
+				print "Need : " , i[1]
+				print "Read : " , binascii.hexlify(Readed)
+				break
+
+		if read_pass:	#if all bytes are correct, than patch it
+			for i in patch:
+				ifile.seek( i[0] )
+				ifile.write( binascii.unhexlify(i[2]) )
+			ifile.close()
+			print 'VideoAR Fix for A Series Patched on image.'
+			Inject_exeDSP( FileTarget, exeDSPFileName )
+			return 1
+
+		else:				#if there is difference on bytes give error
+			print "Warning! This Firmware or script is CORRUPT!"
+			print "OPERATION ABORTED!"
+			ifile.close()
+			return -1
+
 	elif AutoPatcher( FileTarget ) == 0:
 		print
 		return 0
@@ -353,11 +392,16 @@ def Extract_exeDSP( FatImage ):
 	SectorsPerFAT,     = struct.unpack( 'H', boot[0x16:0x16+2] )
 	MaxRootEntry,      = struct.unpack( 'H', boot[0x11:0x11+2] )
 	SectorsPerCluster, = struct.unpack( 'B', boot[0xd:0xd+1] )
+#	print "BytesPerSector   : 0x%X" % BytesPerSector
+#	print "ReservedSector   : 0x%X" % ReservedSector
+#	print "NumberOfFAT      : 0x%X" % NumberOfFAT
+#	print "SectorsPerFAT    : 0x%X" % SectorsPerFAT
+#	print "MaxRootEntry     : 0x%X" % MaxRootEntry
+#	print "SectorsPerCluster: 0x%X" % SectorsPerCluster
 
 	#the FAT track table goes all the way to HEAD 0 TRACK 0 SECTOR 18
-	image.seek( 18*BytesPerSector )
+	image.seek( (NumberOfFAT*SectorsPerFAT+ReservedSector)*BytesPerSector )
 	FAT=image.read( SectorsPerFAT*BytesPerSector )
-
 	FATexeDSP=''
 	for i in range(0, len(FAT), 32):
 	  if FAT[i:i+32].startswith('EXEDSP'):
@@ -401,7 +445,7 @@ def Inject_exeDSP( FatImage, exeDSPFileName ):
 	SectorsPerCluster, = struct.unpack( 'B', boot[0xd:0xd+1] )
 
 	#the FAT track table goes all the way to HEAD 0 TRACK 0 SECTOR 18
-	image.seek( 18*BytesPerSector )
+	image.seek( (NumberOfFAT*SectorsPerFAT+ReservedSector)*BytesPerSector )
 	FAT=image.read( SectorsPerFAT*BytesPerSector )
 
 	FATexeDSP=''
@@ -642,7 +686,6 @@ def AESprepare( salt, secret='' ):
 	cip_aes = AES.new( key.digest(), AES.MODE_CBC, iv.digest() )
 	return cip_aes,AES.block_size
 
-
 def AESdec( secfile, secret='' ):
 	filesec =  open( secfile,'rb')
 	exeimgsec = filesec.read()
@@ -696,15 +739,15 @@ def SamyGO( in_dir ):
 	if not os.path.isdir( in_dir ):
 		print "No valid directory with name of " + in_dir
 		return False
-
+	encmode = 'none'
 	realdir = os.path.realpath( in_dir )
 	#Reading firmware name for using as XOR decryption key
 	key = open( realdir + '/image/info.txt' , 'r' ).read().split(' ');
 	print "Firmware: ",key[0],'v'+key[1]
-	CIP = False
 	pv  = pt = 0
 	xorkey = ''
 	if os.path.isfile( realdir+'/image/exe.img.sec' ):
+		encmode = 'CI+'
 		targetfile = realdir+'/image/exe.img.sec'
 		print "AES Encrytped CI+ firmware detected."
 		print "Decrypting with AES..."
@@ -724,17 +767,28 @@ def SamyGO( in_dir ):
 			return False
 		else:
 			print 'CRC Validation passed'
-		CIP = True
 
 	elif os.path.isfile( realdir+'/image/exe.img.enc' ):
+		encmode = 'CI'
 		targetfile = realdir+'/image/exe.img.enc'
 		print "XOR Encrytped CI firmware detected."
 		print "Decrypting with ",
 		decfile,md5digg,xorkey = xor( targetfile )
 		print
 
+	elif os.path.isfile( realdir+'/image/exe.img'):
+		encmode = 'none'
+		decfile = targetfile = realdir+'/image/exe.img'
+		print "Plain firmware detected."
+		md5digg = hashlib.md5()
+		df = open( decfile, 'rb' )
+		md5digg.update( df.read() )
+		md5digg = md5digg.hexdigest()
+		df.close()
+		print
+
 	else:
-		print 'No image/exe.img.enc file in directory of ' + in_dir
+		print 'No exe.img files found in directory of ' + in_dir
 		return False
 
 	pv = patch( decfile, md5digg )
@@ -750,16 +804,17 @@ def SamyGO( in_dir ):
 		validfile.close()
 		print
 
-		print "Encrypting with ",
-		encfile,tmp,tmp = xor( decfile, xorkey )	#which means target file exe.img.enc now
-		os.remove( decfile )
-		if CIP:
-			AESenc( encfile )	#now become targetfile exe.img.sec
-			os.remove( encfile )
+		if encmode != 'none':
+			print "Encrypting with ",
+			encfile,tmp,tmp = xor( decfile, xorkey )	#which means target file exe.img.enc now
+			os.remove( decfile )
+			if encmode == 'CI+':
+				AESenc( encfile )	#now become targetfile exe.img.sec
+				os.remove( encfile )
 
 		print 'Operation successfully completed.'
 		print 'Now you can flash your TV with ' + in_dir +' directory.'
-		if CIP:
+		if encmode == 'CI+':
 			print 'Please use "SamyGO RSA-Disabler Application" before flasing hacked firmware.'
 			print 'DO NOT FORGET THE DISABLE WATCHDOG FROM SERVICE MENU FOR FLASHING'
 	else:
