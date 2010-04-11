@@ -20,8 +20,8 @@
 
 #version = 0.01 #initial Release
 #version = 0.02 #Added & after telnet init for run exeDSP if telnet script returns error or not.
-version = 0.03	 #Added newagehun's VideoAR fix for T-CHL7DEUC v2004.1 Firmware and CLI UI improvements.
-
+#version = 0.03 #Added newagehun's VideoAR fix for T-CHL7DEUC v2004.1 Firmware and CLI UI improvements.
+version = 0.04	 #Added VideoAR fix for T-CHEAUSC Firmware version 1012.3 (Usualy named as 2009_DTV_1G_firmware.exe)
 import os
 import sys
 import binascii
@@ -118,14 +118,24 @@ def patch_VideoAR( FileTarget, md5dig ):
 	patch = []
 	print 'MD5 of Decrypted image is :', md5dig
 	if md5dig == '8060752bd9f034816c38408c2edf11b5':
-		print 'Firmware T-CHL7DEUC for LEXXB65X Devices 2004.1 Detected.'
+		print 'Firmware: T-CHL7DEUC version 2004.1 for LEXXB65X Devices Detected.'
 		#(Address, Old Value, New Value)
 		patch =[	( 0x1AC5790, '\x01', '\x04' ),
 					( 0x1AC5798, '\x02', '\x01' ),
 					( 0x1AC5A98, '\x01', '\x03' ),
 					( 0x1AC5AA4, '\x02', '\x04' ),
 					( 0x1AC5AA8, '\x01', '\x03' )]
-	
+					
+	elif md5dig == '63194257f8a9368f06a0af58cdee1c62':
+		print 'Firmware: T-CHEAUSC version 1012.3 for LNXXB65X Devices Detected.'
+		#(Address, Old Value, New Value)
+		patch =[	( 0x1989BF8, '\x01', '\x04' ),
+					( 0x1989C00, '\x02', '\x01' ),
+					( 0x1989EFC, '\x01', '\x03' ),
+					( 0x1989F08, '\x02', '\x04' ),
+					( 0x1989F0C, '\x01', '\x03' )]
+#	elif Remember! Convert exeDSP values to Image values, or Image will be corrupt!
+
 	if len(patch) == 0 :	#if no md5 definition match with firmware, skip the patch.
 		print "Oops!: This firmware is unknown for VideoAR patch. Skipped!"
 		print "Please visit forum for support."
