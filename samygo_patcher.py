@@ -18,7 +18,8 @@
 #
 #    SamyGo Home Page: http://samygo.sourceforge.net
 
-version = 0.01 #initial Release
+#version = 0.01 #initial Release
+version = 0.02	#Added & after telnet init for run exeDSP if telnet script returns error or not.
 
 import os
 import sys
@@ -86,7 +87,7 @@ def enable_telnet( FileTarget ):
 			print 'Found on :', location+found
 			print 'Patching File...'
 			ifile.seek( location + found )
-			ifile.write( ';/etc/telnetd_start.sh ' )
+			ifile.write( ';/etc/telnetd_start.sh&' )
 			ifile.close()
 			print 'Patch Complete.'
 			return True
