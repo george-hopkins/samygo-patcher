@@ -27,7 +27,8 @@
 #version = 0.07 #Added NewAge's VideoAR Fix v2 for T-CHL7DEUC v2004.1 Firmware and patch code improvements.
 #version = 0.08 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2004.0 and 2008.2
 #version = 0.09 #Added  VideoAR Fix v1 for T-CHL7DEUC Firmware version 2005.0
-version = 0.10 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2009.0
+#version = 0.10 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2009.0
+version = 0.11 #Added Telnet or Advanced Mode switch.
 
 import os
 import sys
@@ -101,12 +102,18 @@ def patch_Telnet( FileTarget ):
 		found = data.find( "#Remove engine logging." )
 		if found != -1 :
 			print
-			print 'Telnet Suitable Location Found on Offset :', location+found
+			print 'Suitable Location Found for Script injection on Offset :', location+found
+			var = raw_input("Enable Telnet or Advanced Mode on image( T/a )? ")
+			
 			print 'Patching File...'
 			ifile.seek( location + found )
-			ifile.write( ';/etc/telnetd_start.sh&' )
+			if var == 'a' or var == 'A':
+				ifile.write( ';/mtd_rwarea/SamyGO.sh&' )
+				print "TV will initiate '/mtd_rwarea/SamyGO.sh' script on each start."
+			else:
+				ifile.write( ';/etc/telnetd_start.sh&' )
+				print "Telnet Enabled on image."
 			ifile.close()
-			print "Telnet Enabled on image."
 			return True
 		else :
 			sys.stdout.write( "\rSearching %" + str(100*location/FileSize) )
