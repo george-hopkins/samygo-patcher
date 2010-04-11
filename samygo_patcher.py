@@ -21,7 +21,9 @@
 #version = 0.01 #initial Release
 #version = 0.02 #Added & after telnet init for run exeDSP if telnet script returns error or not.
 #version = 0.03 #Added newagehun's VideoAR fix for T-CHL7DEUC v2004.1 Firmware and CLI UI improvements.
-version = 0.04	 #Added VideoAR fix for T-CHEAUSC Firmware version 1012.3 (Usualy named as 2009_DTV_1G_firmware.exe)
+#version = 0.04 #Added VideoAR fix for T-CHEAUSC Firmware version 1012.3 (Usualy named as 2009_DTV_1G_firmware.exe)
+version = 0.05 #Fixed file open mode by forcing binary for windows. Thanks dolak for indicating bug.
+
 import os
 import sys
 import binascii
@@ -41,8 +43,8 @@ def xor(fileTarget, key):
 	else:
 		keyData = key
  
-	e = open(ofile, "w")
-	f = open(ifile, "r")
+	e = open(ofile, "wb")
+	f = open(ifile, "rb")
  
 	FileSize = bytesToCopy = os.stat( fileTarget )[6]
 	percent_show = 0
