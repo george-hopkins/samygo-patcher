@@ -25,7 +25,8 @@
 #version = 0.05 #Fixed file open mode by forcing binary for windows. Thanks dolak for indicating bug.
 #version = 0.06 #Fixed the CRC sign problem. Thanks atempbloggs for indicating bug.
 #version = 0.07 #Added NewAge's VideoAR Fix v2 for T-CHL7DEUC v2004.1 Firmware and patch code improvements.
-version = 0.08 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2004.0 and 2008.2
+#version = 0.08 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2004.0 and 2008.2
+version = 0.09 #Added  VideoAR Fix v1 for T-CHL7DEUC Firmware version 2005.0
 
 import os
 import sys
@@ -125,8 +126,19 @@ def patch_VideoAR( FileTarget, md5dig ):
 	patch = []
 	vrs = '1'
 	print 'MD5 of Decrypted image is :', md5dig
-	if md5dig == '8060752bd9f034816c38408c2edf11b5':
+	if md5dig == '9b4d11ddc6bd41156573ae61d1660fdf':
+		print 'Firmware: T-CHL7DEUC version 2005.0 for LEXXB65X Devices Detected.'
+		#(Address, Old Value, New Value)
+		#773000 exeDSP Head
+		patch =[( 0x1AC67F0, '01', '04' ),	
+					( 0x1AC67F8, '02', '01' ),
+					( 0x1AC6AF8, '01', '03' ),
+					( 0x1AC6B04, '02', '04' ),
+					( 0x1AC6B08, '01', '03' )]
+					
+	elif md5dig == '8060752bd9f034816c38408c2edf11b5':
 		print 'Firmware: T-CHL7DEUC version 2004.1 for LEXXB65X Devices Detected.'
+		#Compatible Firmwares 2004.1 and 2005.0 share same exeDSP and exactly on same location.
 		#(Address, Old Value, New Value)
 		#773000 exeDSP Head
 		#patch =[( 0x1AC5790, '01', '04' ),	
@@ -228,6 +240,7 @@ def SamyGO( in_dir ):
 	print
 	pv = patch_VideoAR( decfile, md5digg )
 	pt = patch_Telnet( decfile )
+	pt = 0
 	
 	if( (pt or pv) and pv != -1 ):	#if Telnet or Video patch applied 
 		crc = calculate_crc( decfile )
