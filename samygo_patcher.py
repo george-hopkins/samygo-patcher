@@ -29,7 +29,8 @@
 #version = 0.09 #Added  VideoAR Fix v1 for T-CHL7DEUC Firmware version 2005.0
 #version = 0.10 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2009.0
 #version = 0.11 #Added Telnet or Advanced Mode switch.
-version = 0.12 #Fixed not make encryption if no VideoAR fix situation.
+#version = 0.12 #Fixed not make encryption if no VideoAR fix situation.
+version = 0.13 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 3000.G
 
 import os
 import sys
@@ -175,7 +176,7 @@ def patch_VideoAR( FileTarget, md5dig ):
 					( 0x1989F0C, '01', '03' )]
 	
 	elif md5dig == '236cd11def19b92107593105cda4e0c7':
-		print 'Firmware: T-CHU7DEUC version 2004.0 for UEXXB70XX Devices Detected.'
+		print 'Firmware: T-CHU7DEUC version 2004.0 for UEXXB7XXX Devices Detected.'
 		patch =[ ( 0x22AEDE8, '01', '04' ),
 					( 0x22AEDF0, '02', '01' ),
 					( 0x22AF0F0, '01', '03' ),
@@ -183,21 +184,31 @@ def patch_VideoAR( FileTarget, md5dig ):
 					( 0x22AF100, '01', '03' ) ]
 					
 	elif md5dig == '66c3681faf32527fd9330364203bf245':
-		print 'Firmware: T-CHU7DEUC version 2008.2 for UEXXB70XX Devices Detected.'
+		print 'Firmware: T-CHU7DEUC version 2008.2 for UEXXB7XXX Devices Detected.'
 		patch =[ ( 0x1AC5758, '01', '04' ),
 					( 0x1AC5760, '02', '01' ),
 					( 0x1AC5A60, '01', '03' ),
 					( 0x1AC5A6C, '02', '04' ),
 					( 0x1AC5A70, '01', '03' )]
 	elif md5dig == 'a1b3e35f97881703c468a7a72bb759e8':
-		print 'Firmware: T-CHU7DEUC version 2009.0 for UEXXB70XX Devices Detected.'
+		print 'Firmware: T-CHU7DEUC version 2009.0 for UEXXB7XXX Devices Detected.'
 		#773000 exeDSP Head
 		patch =[( 0x1AC67B8, '01', '04' ),	
 					( 0x1AC67C0, '02', '01' ),
 					( 0x1AC6AC0, '01', '03' ),
 					( 0x1AC6ACC, '02', '04' ),
 					( 0x1AC6AD0, '01', '03' )]
-			
+
+	elif md5dig == '4fcf94a6af12d35eea9a466f1fa20830':
+		print 'Firmware: T-CHU7DEUC version 3000.G for UEXXB7XXX Devices Detected.'
+		#773000 exeDSP Head
+		patch =[( 0x1354128, '01', '04' ),	#Notice! These are exeDSP locations, not exe.img as others
+					( 0x1354130, '02', '01' ),
+					( 0x1354430, '01', '03' ),
+					( 0x135443C, '02', '04' ),
+					( 0x1354440, '01', '03' )]
+		patch = [ ((i[0]+0x773000 ),i[1],i[2] ) for i in patch ] #make them image locations.
+
 	else :
 		print "Oops!: This firmware is unknown for VideoAR patch. Skipped!"
 		print "Please visit forum for support."
