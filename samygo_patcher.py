@@ -35,7 +35,8 @@
 #version = 0.15 #Added Automatic VideoAR Fix v1 Patching for All FAT exe.img images.
 #version = 0.16 #Added CI+ devices support (Requires Crypto Package for python). XOR acceleration if Crypto Package found. And Fixed Validinfo update if CRC is smaller than 8 significant byte.
 #version = 0.17 #Placed VideoARFix switch. Firmware ID.Shown on Patch screen. exeDSP extracted with Firmware Name. Fixed MD5 hex diggest reporting on slow xor enigne.
-version = 0.18 #Fixed T-CHL5DEUC's Windows patch process.
+#version = 0.18 #Fixed T-CHL5DEUC's Windows patch process.
+version = 0.19 #Changed XOR key retrieve way. Now ket readed directly from exeDSP... Compatibility for T-CHEAEAC 2005 FW.for LAxxB650T1R
 
 import os
 import sys
@@ -47,7 +48,7 @@ import urllib
 import struct
 
 #XOR file with given key, (slow!)
-def xor(fileTarget, key):
+def xor(fileTarget, key=''):
 	md5digg = hashlib.md5()
 
 	ifile = fileTarget
@@ -58,15 +59,20 @@ def xor(fileTarget, key):
 	else:
 		ofile = fileTarget+'.xor'
 
-	if os.path.isfile(key):
-		kf = open(key)
-		keyData = kf.read()
-		kf.close()
-	else:
-		keyData = key
-
 	e = open(ofile, "wb")
 	f = open(ifile, "rb")
+
+	if key!='':
+		keyData = key
+	else:
+		f.seek(-20, 2)
+		a = f.read()
+		f.seek(0)
+		a = a[a.find( 'T-' ):]
+		keyData = a[:a[1:].find( 'T-' )+1]
+
+	print "XOR Key : ",  keyData
+
 
 	FileSize = bytesToCopy = os.stat( fileTarget )[6]
 	percent_show = 0
@@ -76,14 +82,14 @@ def xor(fileTarget, key):
 		from Crypto.Cipher import XOR
 		print 'Crypto package found, using fast XOR engine.'
 		CryptPackage = True
-		cip_xor = XOR.new( key )
+		cip_xor = XOR.new( keyData )
 		the_image_data = cip_xor.decrypt( f.read() )
 		md5digg.update( the_image_data )
 		e.write( the_image_data )
 		e.close()
 		f.close()
 		print
-		return ofile, md5digg.hexdigest()
+		return ofile, md5digg.hexdigest(),keyData
 	except ImportError:
 		print 'Crypto package not found, using slow XOR engine.'
 		sys.stdout.write( " %00" )
@@ -112,7 +118,7 @@ def xor(fileTarget, key):
 		e.close()
 		f.close()
 		print
-		return ofile, md5digg.hexdigest()
+		return ofile, md5digg.hexdigest(),keyData
 
 #partial elfread utility in python, by Erdem Umut Altinyurt 2009 (C)
 def ReadELF( filename ):
@@ -217,7 +223,7 @@ def patch_Telnet( FileTarget ):
 	ifile.close()
 	print
 	print 'Oops!: "#Remove engine logging." string not found on image.'
-	print 'Probably this firmware is already patched or firmware is encrypted with SSL'
+	print 'Probably this firmware is already patched.'
 	print 'Telnet Patch not applied.'
 	print
 	return False
@@ -543,14 +549,15 @@ def SamyGO( in_dir ):
 	print "Firmware: ",key[0],'v'+key[1]
 	CIP = False
 	pv  = pt = 0
+	xorkey = ''
 	if os.path.isfile( realdir+'/image/exe.img.sec' ):
 		targetfile = realdir+'/image/exe.img.sec'
 		print "AES Encrytped CI+ firmware detected."
 		print "Decrypting with AES..."
 		encfile = AESdec( targetfile )
 		print
-		print "Decrypting with XOR key : ", key[0]
-		decfile,md5digg = xor( encfile, key[0] )
+		print "Decrypting with ",
+		decfile,md5digg,xorkey = xor( encfile )
 		CRC = calculate_crc(decfile)
 		filevalid = open(realdir + '/image/validinfo.txt', 'r')
 		ValidCRC = filevalid.read()
@@ -568,8 +575,8 @@ def SamyGO( in_dir ):
 	elif os.path.isfile( realdir+'/image/exe.img.enc' ):
 		targetfile = realdir+'/image/exe.img.enc'
 		print "XOR Encrytped CI firmware detected."
-		print "Decrypting with XOR key : ", key[0]
-		decfile,md5digg = xor( targetfile, key[0] )
+		print "Decrypting with ",
+		decfile,md5digg,xorkey = xor( targetfile )
 		print
 
 	else:
@@ -594,8 +601,8 @@ def SamyGO( in_dir ):
 		validfile.close()
 		print
 
-		print "Encrypting with XOR : ", key[0]
-		encfile, tmp = xor( decfile, key[0] )	#which means target file exe.img.enc now
+		print "Encrypting with ",
+		encfile,tmp,tmp = xor( decfile, xorkey )	#which means target file exe.img.enc now
 		os.remove( decfile )
 		if CIP:
 			AESenc( encfile )	#now become targetfile exe.img.sec
