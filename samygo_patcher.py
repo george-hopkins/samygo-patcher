@@ -36,7 +36,8 @@
 #version = 0.16 #Added CI+ devices support (Requires Crypto Package for python). XOR acceleration if Crypto Package found. And Fixed Validinfo update if CRC is smaller than 8 significant byte.
 #version = 0.17 #Placed VideoARFix switch. Firmware ID.Shown on Patch screen. exeDSP extracted with Firmware Name. Fixed MD5 hex diggest reporting on slow xor enigne.
 #version = 0.18 #Fixed T-CHL5DEUC's Windows patch process.
-version = 0.19 #Changed XOR key retrieve way. Now ket readed directly from exeDSP... Compatibility for T-CHEAEAC 2005 FW.for LAxxB650T1R
+#version = 0.19 #Changed XOR key retrieve way. Now ket readed directly from exeDSP... Compatibility for T-CHEAEAC 2005 FW.for LAxxB650T1R
+version = '0.20' #Added Auto Big & Colorful Subtitle Patch, Modulerized code flow with Extract_exeDSP & Inject_exeDSP functions. Added VideoAR Fix v1 for CI+ devices.
 
 import os
 import sys
@@ -65,7 +66,7 @@ def xor(fileTarget, key=''):
 	if key!='':
 		keyData = key
 	else:
-		f.seek(-20, 2)
+		f.seek(-40, 2)
 		a = f.read()
 		f.seek(0)
 		a = a[a.find( 'T-' ):]
@@ -126,12 +127,11 @@ def ReadELF( filename ):
 	fl = open( filename, 'rb' )
 
 	ELF = fl.read( 52 )
-	if (ELF[0:16] == '\x7F\x45\x4C\x46\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00') and (ELF[ 18:20 ] == '\x28\x00'): #ARM MAchine code
-		print 'ARM ELF exeDSP File Detected'
-	else:
+	if not ((ELF[0:16] == '\x7F\x45\x4C\x46\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00') and (ELF[ 18:20 ] == '\x28\x00')): #ARM Machine code
 		print 'Not an ARM ELF exeDSP file'
 		sys.exit()
 
+	#print 'ARM ELF exeDSP File Detected'
 	SectionHeader_TableOffset, = struct.unpack('<I', ELF[32:36])
 	SectionHeader_EntrySize,SectionHeader_NumberOfEntries,SectionHeader_StringIndexNumber, = struct.unpack('<HHH', ELF[46:52])
 
@@ -207,7 +207,7 @@ def patch_Telnet( FileTarget ):
 				ifile.write( ';/mtd_rwarea/SamyGO.sh&' )
 				print "TV will initiate '/mtd_rwarea/SamyGO.sh' script on each start."
 				print
-			if var == 'n' or var == 'N':
+			elif var == 'n' or var == 'N':
 				print "Telnet patch skipped."
 				print
 				return False
@@ -230,12 +230,13 @@ def patch_Telnet( FileTarget ):
 
 #Detect exact file using MD5 Hasf of it.
 #Than changes defined bytes with given values.
-def patch_VideoAR( FileTarget, md5dig ):
-	print 'Applying VideoAR Patch...'
+def patch( FileTarget, md5dig ):
+	print 'Applying Patches...'
 	FileSize = bytesToCheck = os.stat( FileTarget )[6]
 	patch = []
 	vrs = '1'
 	print 'MD5 of Decrypted image is :', md5dig
+	print
 	if md5dig == '8060752bd9f034816c38408c2edf11b5':
 		print 'Firmware: T-CHL7DEUC version 2004.1 for LEXXB65X Devices Detected.'
 		ifile = open( FileTarget, "r+b" )
@@ -329,15 +330,21 @@ def patch_VideoAR( FileTarget, md5dig ):
 				print 'xdelta package is not installed to your system, please install and try again.'
 				return 0
 
-	else :
-		if VideoARFix_v1_patch_auto( FileTarget ) == 0:
-			print
-			return 0
+	elif AutoPatcher( FileTarget ) == 0:
+		print
+		return 0
 	print
 	return 1
 
-def VideoARFix_v1_patch_auto( FileTarget ):
-	image=open( FileTarget, 'r+b' )
+def Extract_exeDSP( FatImage ):
+	print 'Extracting exeDSP from image'
+	image=open( FatImage, 'r+b' )
+	image.seek(54)
+	if image.read(5) != 'FAT16':
+		print 'FatImage is not a FAT16 Image!'
+		return False
+
+	image.seek(0)
 	#First we needed to extract exeDSP from FAT image
 	boot=image.read(50)
 	BytesPerSector,    = struct.unpack( 'H', boot[0xb:0xb+2] )
@@ -372,30 +379,65 @@ def VideoARFix_v1_patch_auto( FileTarget ):
 	exeDSP = image.read( exeDSPSize )
 
 	#Create exeDSP file
-	info = open(os.path.dirname( FileTarget )+os.path.sep+'info.txt').read().split(' ')
-	exeDSPFileName="exeDSP"+'-'+info[0]+'-'+info[1].strip();
+	info = open(os.path.dirname( FatImage )+os.path.sep+'info.txt').read().split(' ')
+	exeDSPFileName=os.path.dirname( FatImage )+os.path.sep+"exeDSP"+'-'+info[0]+'-'+info[1].strip();
 	exeDSPFile=open( exeDSPFileName, 'w+b' )
 	exeDSPFile.write( exeDSP )
 	exeDSPFile.close()
+	print 'exeDSP file created at : ', exeDSPFileName
+	print
+	return exeDSPFileName
 
+def Inject_exeDSP( FatImage, exeDSPFileName ):
+	print 'Injecting modified exeDSP file to image'
+	image=open( FatImage, 'r+b' )
+	#First we needed to extract exeDSP from FAT image
+	boot=image.read(50)
+	BytesPerSector,    = struct.unpack( 'H', boot[0xb:0xb+2] )
+	ReservedSector,    = struct.unpack( 'H', boot[0xe:0xe+2] )
+	NumberOfFAT,       = struct.unpack( 'B', boot[0x10:0x10+1] )
+	SectorsPerFAT,     = struct.unpack( 'H', boot[0x16:0x16+2] )
+	MaxRootEntry,      = struct.unpack( 'H', boot[0x11:0x11+2] )
+	SectorsPerCluster, = struct.unpack( 'B', boot[0xd:0xd+1] )
+
+	#the FAT track table goes all the way to HEAD 0 TRACK 0 SECTOR 18
+	image.seek( 18*BytesPerSector )
+	FAT=image.read( SectorsPerFAT*BytesPerSector )
+
+	FATexeDSP=''
+	for i in range(0, len(FAT), 32):
+	  if FAT[i:i+32].startswith('EXEDSP'):
+		 FATexeDSP = FAT[i:i+32]
+
+	if FATexeDSP == '':
+		print 'No exeDSP file found on image'
+		return False
+
+	exeDSPStartCluster, = struct.unpack( 'H', FATexeDSP[26:28] )
+	exeDSPSize,  = struct.unpack( 'I', FATexeDSP[28:32] )
+
+	#FileStartSector = ReservedSectors(0x0e) + (NumofFAT(0x10) * Sectors2FAT(0x16)) + (MaxRootEntry(0x11) * 32 / BytesPerSector(0x0b)) + ((X - 2) * SectorsPerCluster(0x0d))
+	exeDSPSector= ReservedSector + NumberOfFAT * SectorsPerFAT + MaxRootEntry*32/BytesPerSector + ((exeDSPStartCluster - 2) * SectorsPerCluster)
+
+	exeDSPStart = exeDSPSector*BytesPerSector
+	print 'FAT image analyzed - exeDSP location:',exeDSPStart,' size:', exeDSPSize
+	exeDSPFile=open( exeDSPFileName, 'rb' )
+	exeDSP = exeDSPFile.read()
+	exeDSPFile.close()
+	print 'Injection Size : ', len(exeDSP)
+	if exeDSPSize != len(exeDSP):
+		print 'Error, injection file has different size than original exeDSP.'
+		return False
+	else:
+		image.seek( exeDSPStart )
+		image.write( exeDSP )
+	image.close()
+	return True
+
+def Patch_VideoAR_v1_Fix( exeDSPFileName ):
+	print 'Patching VideoAR Fix v1'
 	GetToolItemAdr = 0
 	PressLeftRightKeyAdr = 0
-
-	#Not suitable for windows because of no elfread.exe
-##	#execute readelf program for get function adresses.
-##	proc = subprocess.Popen('readelf SamyGO.exeDSP -sW', shell='true', stdout=subprocess.PIPE)
-##	symtable = proc.stdout.read()
-##	#os.remove( 'SamyGO.exeDSP' )
-##
-##	#internal "grep _ZNK23CToolMmbDisplaySizeItem"
-##	lst = [i for i in symtable.split('\n') if i.find( '_ZNK23CToolMmbDisplaySizeItem') >= 0]
-##	for i in lst:
-##	  if i.find('GetToolItem') >=0:
-##	  	 GetToolItemAdr = int(i.split()[1], 16) - 0x8000	# -0x8000 makes adress->Offset
-##	  	 print 'CToolMmbDisplaySizeItem::GetToolItem() Adress : 0x%X' % GetToolItemAdr
-##	  elif i.find('PressLeftRightKey') >= 0:
-##		 PressLeftRightKeyAdr = int(i.split()[1], 16) - 0x8000	# -0x8000 makes adress->Offset
-##		 print 'CToolMmbDisplaySizeItem::PressLeftRightKey() Adress : 0x%X' % PressLeftRightKeyAdr
 
 	symtable = ReadELF( exeDSPFileName )
 	#os.remove( exeDSPFileName )
@@ -413,44 +455,156 @@ def VideoARFix_v1_patch_auto( FileTarget ):
 		return 0
 	 #########Video ARFix v1#########
 	# 00FFAC00: GetToolItem:         #
-	# +0x20 1 -> 4                   #
-	# +0x28 2 -> 1                   #
+	# +0x20 1 -> 4                   # 0x28 for CI+
+	# +0x28 2 -> 1                   # 0x32 for CI+
 	# 00FFAEF4: PressLeftRightKey    #
-	# +0x24 1 -> 3                   #
-	# +0x3C 2 -> 4                   #
-	# +0x40 1 -> 3                   #
+	# +0x24 1 -> 3                   # 0x38 for CI+
+	# +0x3C 2 -> 4                   # 0x44 for CI+
+	# +0x40 1 -> 3                   # 0x48 for CI+
 	# -0x8000 for offset             #
 	 ################################
 	patch_address = [ GetToolItemAdr+0x20,	GetToolItemAdr+0x28,	PressLeftRightKeyAdr+0x30,	PressLeftRightKeyAdr+0x3C, PressLeftRightKeyAdr+0x40 ]
+	patch_address_cip = [ GetToolItemAdr+0x28,	GetToolItemAdr+0x30,	PressLeftRightKeyAdr+0x38,	PressLeftRightKeyAdr+0x44, PressLeftRightKeyAdr+0x48 ]
 	patch_check = ''
+	patch_check_cip = ''
 	patch_value = '\x04\x01\x03\x04\x03'
+
+	exeDSPFile = open( exeDSPFileName, 'r+b' )
+	exeDSP = exeDSPFile.read()
+	for i in patch_address:
+		patch_check += exeDSP[i]
+
+	for i in patch_address_cip:
+		patch_check_cip += exeDSP[i]
+
+	if patch_check == "\x01\x02\x01\x02\x01":
+		print "VideoAR Fix v1 for CI Compatibility Found."
+		var = raw_input("Enable VideoAR Fix v1 ( Y/n )? ")
+		if var == 'n' or var == 'N':
+			print "VideoAR Fix v1 patch skipped."
+			return 0
+		##patch file code
+		for i in range(0,len(patch_address)):
+			exeDSPFile.seek( patch_address[i] )
+			exeDSPFile.write( patch_value[i] )
+		print 'VideoARFix v1 patched to exeDSP'
+		print
+		return 1
+
+	elif patch_check_cip == "\x01\x02\x01\x02\x01":
+		print "VideoAR Fix v1 for CI+ Compatibility Found."
+		var = raw_input("Enable VideoAR Fix v1 ( Y/n )? ")
+		if var == 'n' or var == 'N':
+			print "VideoAR Fix v1 patch skipped."
+			return 0
+		##patch file code
+		for i in range(0,len(patch_address_cip)):
+			exeDSPFile.seek( patch_address_cip[i] )
+			exeDSPFile.write( patch_value[i] )
+		print 'VideoARFix v1 patched to exeDSP'
+		print
+		return 1
+
+	else:
+		print "VideoAR Fix v1 Compatibility NOT Found."
+		print "Skipped VideoAR v1 Fix."
+		print
+		return -1
+
+def Patch_Big_Subtitles( exeDSPFileName ):
+	print 'Patching Big Subtitles'
+	UpdateCaptionTextSizeAdr = 0
+	InitCaptionAdr = 0
+
+	symtable = ReadELF( exeDSPFileName )
+	#os.remove( exeDSPFileName )
+	symtable = [i for i in symtable if i[0].find( 'CMultimediaMovieInfo') >= 0]	#filters non required symbols for this hack
+	UpdateCaptionTextSizeAdr = [i for i in symtable if i[0].find( '_ZN20CMultimediaMovieInfo21UpdateCaptionTextSizeEi') >= 0][0]
+	InitCaptionAdr = [i for i in symtable if i[0].find( '_ZN20CMultimediaMovieInfo11InitCaptionEv') >= 0][0]
+
+	if len(UpdateCaptionTextSizeAdr) * len(InitCaptionAdr) != 0 :
+		UpdateCaptionTextSizeAdr = UpdateCaptionTextSizeAdr[1] - 0x8000	# -0x8000 makes adress->Offset
+		InitCaptionAdr = InitCaptionAdr[1] - 0x8000	# -0x8000 makes adress->Offset
+		print 'CMultimediaMovieInfo::UpdateCaptionTextSize() Adress : 0x%X' % UpdateCaptionTextSizeAdr
+		print 'CMultimediaMovieInfo::InitCaption() Adress : 0x%X' % InitCaptionAdr
+	else:
+		print 'Error: Required adresses not found at exeDSP!'
+		return 0
+	 ######################Big Subtitles######################
+	# 00DFDECC: _ZN20CMultimediaMovieInfo21UpdateCaptionTextSizeEi   #
+	# +0x0C 18 -> 20                                                 # same for CI+
+	# 00DFEC38: _ZN20CMultimediaMovieInfo11InitCaptionEv             #
+	# +0x7C 18 -> 20                                                 # same for CI+
+	# -0x8000 for offset                                             #
+	 ###################Colorfull Subtitles###################
+	# +0x88:00E598E0 LDR     R1, =0xFFF0F0F0 | BIN 38 10 9F E5       #
+	# 00E598E0 + 38 + 8 = Color code area                            #
+	# 00E59920  F0 F0 F0 FF   CI+ color                              #
+	 #########################################################
+	exeDSPFile = open( exeDSPFileName, 'r+b' )
+	exeDSP = exeDSPFile.read()
+
+	#Read value iteration 0x38 but needed to be sure.
+	ColorKeyAdr, = struct.unpack( 'B', exeDSP[InitCaptionAdr + 0x88:InitCaptionAdr + 0x88 + 1] )
+	ColorKeyAdr = InitCaptionAdr + 0x88 + ColorKeyAdr + 8
+	Color, = struct.unpack( 'I', exeDSP[ColorKeyAdr:ColorKeyAdr+4] )
+
+	print "Colorful Subtitles ColorKey Adr 0x%X" % ColorKeyAdr + " Color: 0x%X" % Color
+	if Color == 0xFFF0F0F0:
+		print "Colorfull Subtitles Compatibility Found."
+		var = raw_input("Want to Change Substitle Color ( y/N )? ")
+		if var == 'y' or var == 'Y':
+			while True:
+				try:
+					var = raw_input("Enter New Color Value as ARGB (default 0xFFF0F0F0) : 0x")
+					if len(var) !=8:
+						continue
+					Color=int(var,16)
+					exeDSPFile.seek( ColorKeyAdr )
+					exeDSPFile.write( struct.pack( 'I',Color ) )
+					print "Colorfull Subtitles patched to exeDSP."
+					break
+				except ValueError:
+					print 'Error! Try Again.'
+		else:
+			print "Colorfull Subtitles patch skipped."
+
+	print
+
+	patch_address = [ UpdateCaptionTextSizeAdr+0x0C,	InitCaptionAdr+0x7C ]
+	patch_check = ''
+	patch_value = '\x20\x20'
+
 	for i in patch_address:
 	  patch_check += exeDSP[i]
 
-	if patch_check == "\x01\x02\x01\x02\x01":
-	  print "VideoAR Fix v1 Compatibility Found."
-	  var = raw_input("Enable VideoAR Fix v1 ( Y/n )? ")
+	if patch_check == "\x18\x18":
+	  print "Big Subtitles Compatibility Found."
+	  var = raw_input("Enable Big Subtitles ( Y/n )? ")
 	  if var == 'n' or var == 'N':
-		print "VideoAR Fix v1 patch skipped."
-		return 0
+		print "Big Subtitles patch skipped."
+		return False
 	else:
-	  print "VideoAR Fix v1 Compatibility NOT Found."
-	  print "Skipped VideoAR Fix."
-
-	  return -1
+	  print "Big Subtitles Compatibility NOT Found."
+	  print "Big Subtitles patch skipped."
+	  return False
 
 	##patch file code
-	#for i in range(0,len(patch_address)):
-	#  exeDSPFile.seek( patch_address[i] )
-	#  exeDSPFile.write( patch_value[i] )
-	#print 'VideoARFix v1 exeDSP patched'
-
-	#patch_image
 	for i in range(0,len(patch_address)):
-	  image.seek( patch_address[i]+exeDSPStart )
-	  image.write( patch_value[i] )
-	print 'VideoARFix v1 exe.img patched'
-	return 1
+	  exeDSPFile.seek( patch_address[i] )
+	  exeDSPFile.write( patch_value[i] )
+	print 'Big Subtitles patched to exeDSP'
+	print
+	return True
+
+def AutoPatcher( FileTarget ):
+	exeDSPFileName = Extract_exeDSP( FileTarget )
+	a = Patch_VideoAR_v1_Fix( exeDSPFileName )
+	b = Patch_Big_Subtitles( exeDSPFileName )
+	if a or b:
+		return Inject_exeDSP( FileTarget, exeDSPFileName )
+	else:
+		return False
 
 def calculate_crc( decfile ):
 	cfil = open( decfile, 'rb' )
@@ -583,12 +737,7 @@ def SamyGO( in_dir ):
 		print 'No image/exe.img.enc file in directory of ' + in_dir
 		return False
 
-	if CIP:
-		print "It's not safe to change exeDSP at CI+ devices now."
-		print "Skipped Video AR Fix."
-		print
-	else:
-		pv = patch_VideoAR( decfile, md5digg )	#It's not safe to change exeDSP at CI+ devices.
+	pv = patch( decfile, md5digg )
 	pt = patch_Telnet( decfile )
 
 	if (pt or pv) and (pv != -1):	#if Telnet or Video patch applied
@@ -616,7 +765,7 @@ def SamyGO( in_dir ):
 	else:
 		print "No Change applied, Aborting..."
 
-print "SamyGO Firmware Patcher v" + str(version) + " (c) 2010 Erdem U. Altinyurt"
+print "SamyGO Firmware Patcher v" + version + " (c) 2010 Erdem U. Altinyurt"
 print
 print '                   -=BIG FAT WARNING!=-'
 print '            You can brick your TV with this tool!'
