@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #    SamyGO Samsung TV Firmware Telnet Enable Patcher
-#    Copyright (C) 2009  Erdem U. Altunyurt
+#    Copyright (C) 2010  Erdem U. Altunyurt
 
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@
 #version = 0.12 #Fixed not make encryption if no VideoAR fix situation.
 #version = 0.13 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 3000.G
 #version = 0.14 #Added  VideoAR Fix v1 and WiseLink hack for T-CHL5DEUC Firmware version 2008.0
-version = 0.15 #Added Automatic VideoAR Fix v1 Patching for All FAT exe.img images.
-
+#version = 0.15 #Added Automatic VideoAR Fix v1 Patching for All FAT exe.img images.
+version = 0.16 #Added CI+ devices support (Requires Crypto Package for python). XOR acceleration if Crypto Package found. And Fixed Validinfo update if CRC is smaller than 8 significant byte.
 import os
 import sys
 import binascii
@@ -48,7 +48,12 @@ def xor(fileTarget, key):
 	md5digg = hashlib.md5()
 
 	ifile = fileTarget
-	ofile = fileTarget+".xor"
+	if fileTarget[fileTarget.rfind( '.' ):] == '.img':
+		ofile = fileTarget+'.enc'
+	elif fileTarget[fileTarget.rfind( '.' ):] == '.enc':
+		ofile = fileTarget[:fileTarget.rfind( '.' )]
+	else:
+		ofile = fileTarget+'.xor'
 
 	if os.path.isfile(key):
 		kf = open(key)
@@ -63,33 +68,48 @@ def xor(fileTarget, key):
 	FileSize = bytesToCopy = os.stat( fileTarget )[6]
 	percent_show = 0
 
-	sys.stdout.write( " %00" )
-	while bytesToCopy:
+	CryptPackage = False
+	try:
+		from Crypto.Cipher import XOR
+		print 'Crypto package found, using fast XOR engine.'
+		CryptPackage = True
+		cip_xor = XOR.new( key )
+		the_image_data = cip_xor.decrypt( f.read() )
+		md5digg.update( the_image_data )
+		e.write( the_image_data )
+		e.close()
+		f.close()
+		print
+		return ofile, md5digg.hexdigest()
+	except ImportError:
+		print 'Crypto package not found, using slow XOR engine.'
+		sys.stdout.write( " %00" )
+		while bytesToCopy:
 
-		if bytesToCopy >= len(keyData):
-			data = f.read(len(keyData))
-			bytesToCopy -= len(keyData)
-			encryptedData = ''.join([chr(ord(data[i])^ord(keyData[i])) for i in xrange(len(data))])
-			e.write(encryptedData)
+			if bytesToCopy >= len(keyData):
+				data = f.read(len(keyData))
+				bytesToCopy -= len(keyData)
+				encryptedData = ''.join([chr(ord(data[i])^ord(keyData[i])) for i in xrange(len(data))])
+				e.write(encryptedData)
 
-		else:
-			data = f.read(bytesToCopy)
-			bytesToCopy = 0
-			encryptedData = ''.join([chr(ord(data[i])^ord(keyData[i])) for i in xrange(len(data))])
-			e.write(encryptedData)
+			else:
+				data = f.read(bytesToCopy)
+				bytesToCopy = 0
+				encryptedData = ''.join([chr(ord(data[i])^ord(keyData[i])) for i in xrange(len(data))])
+				e.write(encryptedData)
 
-		md5digg.update( encryptedData )
+			md5digg.update( encryptedData )
 
-		percent = 100*(FileSize-bytesToCopy)/FileSize
-		if  percent_show != percent:
-			percent_show = percent
-			sys.stdout.write( "\b\b%02d" % percent )
-			sys.stdout.flush()
+			percent = 100*(FileSize-bytesToCopy)/FileSize
+			if  percent_show != percent:
+				percent_show = percent
+				sys.stdout.write( "\b\b%02d" % percent )
+				sys.stdout.flush()
 
-	e.close()
-	f.close()
-	print
-	return ofile, binascii.hexlify(md5digg.digest())
+		e.close()
+		f.close()
+		print
+		return ofile, md5digg.digest()
 
 #partial elfread utility in python, by Erdem Umut Altinyurt 2009 (C)
 def ReadELF( filename ):
@@ -169,7 +189,7 @@ def patch_Telnet( FileTarget ):
 		found = data.find( "#Remove engine logging." )
 		if found != -1 :
 			print
-			print 'Suitable Location Found for Script injection on Offset :', location+found
+			print 'Suitable Location Found for Script injection on Image Offset :', location+found
 			var = raw_input("Enable Telnet or Advanced Mode on image( T/a )? ")
 
 			print 'Patching File...'
@@ -301,7 +321,8 @@ def patch_VideoAR( FileTarget, md5dig ):
 		else:
 			print "Oops!: This firmware is unknown for VideoAR patch. Skipped!"
 			print "Please visit forum for support."
-			print "SamyGo Home: http://SamyGo.sourceforge.net"
+			print "SamyGO Home: http://SamyGO.sourceforge.net"
+			print
 			return 0
 	return 1
 
@@ -365,7 +386,7 @@ def VideoARFix_v1_patch_auto( FileTarget ):
 ##		 print 'CToolMmbDisplaySizeItem::PressLeftRightKey() Adress : 0x%X' % PressLeftRightKeyAdr
 
 	symtable = ReadELF( 'SamyGO.exeDSP' )
-	os.remove( 'SamyGO.exeDSP' )
+	#os.remove( 'SamyGO.exeDSP' )
 	symtable = [i for i in symtable if i[0].find( '_ZNK23CToolMmbDisplaySizeItem') >= 0]
 	GetToolItem = [i for i in symtable if i[0].find( 'GetToolItem') >= 0][0]
 	PressLeftRightKey = [i for i in symtable if i[0].find( 'PressLeftRightKey') >= 0][0]
@@ -415,12 +436,89 @@ def VideoARFix_v1_patch_auto( FileTarget ):
 
 
 def calculate_crc( decfile ):
-	print "Calculatin new CRC : ",
 	cfil = open( decfile, 'rb' )
 	crc = binascii.crc32('')
 	crc = binascii.crc32(cfil.read(),crc) & 0xffffffff
-	print "%x" % crc
+	print "Calculated CRC : 0x%X" % crc
 	return crc
+
+def AESprepare( salt, secret='' ):
+	try:
+		from Crypto.Cipher import AES
+	except ImportError:
+		print 'Crypto package needed for decrypt AES encryption'
+		print 'Please download and install corresponding version for your OS'
+		print 'pyCrypto home www.pycrypto.org'
+		print 'Download Windows Binaries at http://www.voidspace.org.uk/python/modules.shtml#pycrypto'
+		print 'Win64 libraries could have bug. Use 32 bit python with 32 bit library instead.'
+		sys.exit()
+
+	if len( secret )==0:
+		secret = "A435HX:d3e90afc-0f09-4054-9bac-350cc8dfc901-7cee72ea-15ae-45ce-b0f5-611c4f8d4a71"
+	print 'secret key : ', secret
+
+	sha_secret = hashlib.sha1()
+	sha_secret.update(secret)
+
+	key = hashlib.md5()
+	iv = hashlib.md5()
+	key.update( sha_secret.hexdigest() + salt )
+	#key.hexdigest() - D_1
+	iv.update( key.digest() + sha_secret.hexdigest() + salt )
+	#iv.hexdigest() - D_2
+
+	#openssl aes-128-cbc -d -in exe.img.sec -out exe.img -K e9e6627dc642a202bcf7bd6bdaaaa372 -iv b846d7ce24f89c6e160d455f8849c812
+	cip_aes = AES.new( key.digest(), AES.MODE_CBC, iv.digest() )
+	return cip_aes,AES.block_size
+
+
+def AESdec( secfile, secret='' ):
+	filesec =  open( secfile,'rb')
+	exeimgsec = filesec.read()
+	signature_lenght=int(exeimgsec[-4:-1])
+	# filesize - 4 byte to read signature size - 256 signature length - 8 salted__ - 8 salt
+	decrypted_lenght = len(exeimgsec) - 4 - signature_lenght - 8 - 8
+
+	if exeimgsec[0:8]!='Salted__':
+		print "no salt at file"
+		sys.exit()
+
+	salt=exeimgsec[8:16]
+	the_data = exeimgsec[16:decrypted_lenght+16]	#16 for 'Salted__' + salt
+
+	cip_aes,tmp = AESprepare( salt )
+	
+	print 'Decrypting AES...'
+	the_data = cip_aes.decrypt( the_data )
+
+	encfilename = secfile[:secfile.rfind( '.' )]+'.enc'
+	fileenc = open( encfilename,'wb' )
+	fileenc.write( the_data[:-ord(the_data[-1])] ) #Removes the pad )
+	fileenc.close()
+	return encfilename
+
+def AESenc( encfilename, secret='' ):
+	fileenc =  open( encfilename,'rb')
+	salt = 'SamyGO__'
+	
+	cip_aes,AES_BLOCK_SIZE = AESprepare( salt )
+	if AES_BLOCK_SIZE != 16:
+		print "TV uses block size of 16 while this encryption using",AES_BLOCK_SIZE
+	
+	the_data = fileenc.read()
+	pad = AES_BLOCK_SIZE - len(the_data) % AES_BLOCK_SIZE
+	print 'Encrypting with AES...'
+	the_data = cip_aes.encrypt( the_data+pad*chr(pad) )#Adding last 16 byte block for avoid AES cut
+	print 'done'
+	
+	secfilename = encfilename[:encfilename.rfind( '.' )]+'.sec'
+	filesec = open( secfilename,'wb' )
+	filesec.write( 'Salted__' + salt )
+	filesec.write( the_data ) 
+	filesec.write( 256*'\x30')	#Empty Signature Area
+	filesec.write( '256\n')
+	filesec.close()
+	return secfilename
 
 #Main function, receives firmware's root directory
 def SamyGO( in_dir ):
@@ -429,39 +527,77 @@ def SamyGO( in_dir ):
 		return False
 
 	realdir = os.path.realpath( in_dir )
-	key = open( realdir + '/image/info.txt' , 'r' ).read().split(' ')[0];	#Reading firmware name for using as XOR decryption key
-	print 'Detected XOR key is :',key
-	targetfile = realdir+'/image/exe.img.enc'
-	if not os.path.isfile( targetfile ):
+	#Reading firmware name for using as XOR decryption key
+	key = open( realdir + '/image/info.txt' , 'r' ).read().split(' ')[0];
+	CIP = False
+	pv  = pt = 0
+	if os.path.isfile( realdir+'/image/exe.img.sec' ):
+		targetfile = realdir+'/image/exe.img.sec'
+		print "AES Encrytped CI+ firmware detected."
+		print "Decrypting with AES..."
+		encfile = AESdec( targetfile )
+		print
+		print "Decrypting with XOR key : ", key
+		decfile,md5digg = xor( encfile, key )
+		CRC = calculate_crc(decfile)
+		filevalid = open(realdir + '/image/validinfo.txt', 'r')
+		ValidCRC = filevalid.read()
+		filevalid.close()
+		CRCstart = ValidCRC.find('exe.img_')+8
+		ValidCRC = int(ValidCRC[CRCstart:CRCstart+8], 16)
+
+		if CRC != ValidCRC:
+			print 'Error on Decryption'
+			return False
+		else:
+			print 'CRC Validation passed'
+		CIP = True
+
+	elif os.path.isfile( realdir+'/image/exe.img.enc' ):
+		targetfile = realdir+'/image/exe.img.enc'
+		print "XOR Encrytped CI firmware detected."
+		print "Decrypting with XOR key : ", key
+		decfile,md5digg = xor( targetfile, key )
+		print
+
+	else:
 		print 'No image/exe.img.enc file in directory of ' + in_dir
 		return False
 
-	print "Decrypting with XOR ",
-	decfile,md5digg = xor( targetfile, key )
-	print
-	pv = patch_VideoAR( decfile, md5digg )
+	if CIP:
+		print "It's not safe to change exeDSP at CI+ devices now."
+		print "Skipped Video AR Fix."
+		print
+	else:
+		pv = patch_VideoAR( decfile, md5digg )	#It's not safe to change exeDSP at CI+ devices.
 	pt = patch_Telnet( decfile )
+
 	if (pt or pv) and (pv != -1):	#if Telnet or Video patch applied
 		crc = calculate_crc( decfile )
 		validfile = open(realdir + '/image/validinfo.txt', 'r+')
 		loc = validfile.read().find('exe.img_')
 		validfile.seek( loc+8 )
 		print "Updating " + realdir + '/image/validinfo.txt with new CRC.'
-		validfile.write( "%x" % crc )
+		validfile.write( "%08x" % crc )
 		validfile.close()
 		print
 
-		print "Encrypting with XOR ",
-		decfile_new, tmp = xor( decfile, key )
-		os.remove( targetfile )
+		print "Encrypting with XOR : ", key
+		encfile, tmp = xor( decfile, key )	#which means target file exe.img.enc now
 		os.remove( decfile )
-		os.rename( decfile_new, targetfile )
+		if CIP:
+			AESenc( encfile )	#now become targetfile exe.img.sec
+			os.remove( encfile )
+
 		print 'Operation successfully completed.'
 		print 'Now you can flash your TV with ' + in_dir +' directory.'
+		if CIP:
+			print 'Please use SamyGO RSA Verify Disabler for disable this tool.'
+			print 'DO NOT FORGET THE DISABLE WATCHDOG FROM SERVICE MENU FOR FLASHING'
 	else:
 		print "No Change applied, Aborting..."
 
-print "SamyGo Firmware Patcher v" + str(version) + " (c) 2009 Erdem U. Altinyurt"
+print "SamyGO Firmware Patcher v" + str(version) + " (c) 2010 Erdem U. Altinyurt"
 print
 print '                   -=BIG FAT WARNING!=-'
 print '            You can brick your TV with this tool!'
@@ -469,7 +605,7 @@ print 'Authors accept no responsibility about ANY DAMAGE on your devices!'
 print '         project home: http://SamyGO.sourceforge.net'
 print
 if len(sys.argv) != 2:
-	print "For use this scripty, you have to extract your firmware to a directory first!"
+	print "For use this script, you have to extract your firmware to a directory first!"
 	print "usage: python " + sys.argv[0] + " <path to extracted directory from firmware>"
 	print "example: python " + sys.argv[0] + " ./T-CHL7DEUC/"
 	print
