@@ -33,7 +33,9 @@
 #version = 0.13 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 3000.G
 #version = 0.14 #Added  VideoAR Fix v1 and WiseLink hack for T-CHL5DEUC Firmware version 2008.0
 #version = 0.15 #Added Automatic VideoAR Fix v1 Patching for All FAT exe.img images.
-version = 0.16 #Added CI+ devices support (Requires Crypto Package for python). XOR acceleration if Crypto Package found. And Fixed Validinfo update if CRC is smaller than 8 significant byte.
+#version = 0.16 #Added CI+ devices support (Requires Crypto Package for python). XOR acceleration if Crypto Package found. And Fixed Validinfo update if CRC is smaller than 8 significant byte.
+version = 0.17 #Placed VideoARFix switch. Firmware ID.Shown on Patch screen. exeDSP extracted with Firmware Name. Fixed MD5 hex diggest reporting on slow xor enigne.
+
 import os
 import sys
 import binascii
@@ -109,7 +111,7 @@ def xor(fileTarget, key):
 		e.close()
 		f.close()
 		print
-		return ofile, md5digg.digest()
+		return ofile, md5digg.hexdigest()
 
 #partial elfread utility in python, by Erdem Umut Altinyurt 2009 (C)
 def ReadELF( filename ):
@@ -190,16 +192,22 @@ def patch_Telnet( FileTarget ):
 		if found != -1 :
 			print
 			print 'Suitable Location Found for Script injection on Image Offset :', location+found
-			var = raw_input("Enable Telnet or Advanced Mode on image( T/a )? ")
+			var = raw_input("Enable Telnet or Advanced Mode or nothing on image( T/a/n )? ")
 
 			print 'Patching File...'
 			ifile.seek( location + found )
 			if var == 'a' or var == 'A':
 				ifile.write( ';/mtd_rwarea/SamyGO.sh&' )
 				print "TV will initiate '/mtd_rwarea/SamyGO.sh' script on each start."
+				print
+			if var == 'n' or var == 'N':
+				print "Telnet patch skipped."
+				print
+				return False
 			else:
 				ifile.write( ';/etc/telnetd_start.sh&' )
 				print "Telnet Enabled on image."
+				print
 			ifile.close()
 			return True
 		else :
@@ -248,7 +256,6 @@ def patch_VideoAR( FileTarget, md5dig ):
 				ifile.write( binascii.unhexlify(i[2]) )
 			ifile.close()
 			print 'VideoAR Fix v2 Patched on image.'
-			print
 
 		else:				#if there is difference on bytes give error
 			print "Warning! This Firmware or script is CORRUPT!"
@@ -315,15 +322,10 @@ def patch_VideoAR( FileTarget, md5dig ):
 				return 0
 
 	else :
-		if VideoARFix_v1_patch_auto( FileTarget ) == 1:
-			print 'VideoAR Fix v' + vrs + ' Patched on image.'
-			print
-		else:
-			print "Oops!: This firmware is unknown for VideoAR patch. Skipped!"
-			print "Please visit forum for support."
-			print "SamyGO Home: http://SamyGO.sourceforge.net"
+		if VideoARFix_v1_patch_auto( FileTarget ) == 0:
 			print
 			return 0
+	print
 	return 1
 
 def VideoARFix_v1_patch_auto( FileTarget ):
@@ -362,7 +364,9 @@ def VideoARFix_v1_patch_auto( FileTarget ):
 	exeDSP = image.read( exeDSPSize )
 
 	#Create exeDSP file
-	exeDSPFile=open( 'SamyGO.exeDSP', 'w+b' )
+	info = open(os.path.dirname( FileTarget )+os.path.sep+'info.txt').read().split(' ')
+	exeDSPFileName="exeDSP"+'-'+info[0]+'-'+info[1].strip();
+	exeDSPFile=open( exeDSPFileName, 'w+b' )
 	exeDSPFile.write( exeDSP )
 	exeDSPFile.close()
 
@@ -385,8 +389,8 @@ def VideoARFix_v1_patch_auto( FileTarget ):
 ##		 PressLeftRightKeyAdr = int(i.split()[1], 16) - 0x8000	# -0x8000 makes adress->Offset
 ##		 print 'CToolMmbDisplaySizeItem::PressLeftRightKey() Adress : 0x%X' % PressLeftRightKeyAdr
 
-	symtable = ReadELF( 'SamyGO.exeDSP' )
-	#os.remove( 'SamyGO.exeDSP' )
+	symtable = ReadELF( exeDSPFileName )
+	#os.remove( exeDSPFileName )
 	symtable = [i for i in symtable if i[0].find( '_ZNK23CToolMmbDisplaySizeItem') >= 0]
 	GetToolItem = [i for i in symtable if i[0].find( 'GetToolItem') >= 0][0]
 	PressLeftRightKey = [i for i in symtable if i[0].find( 'PressLeftRightKey') >= 0][0]
@@ -417,9 +421,15 @@ def VideoARFix_v1_patch_auto( FileTarget ):
 
 	if patch_check == "\x01\x02\x01\x02\x01":
 	  print "VideoAR Fix v1 Compatibility Found."
+	  var = raw_input("Enable VideoAR Fix v1 ( Y/n )? ")
+	  if var == 'n' or var == 'N':
+		print "VideoAR Fix v1 patch skipped."
+		return 0
 	else:
 	  print "VideoAR Fix v1 Compatibility NOT Found."
-	  return 0
+	  print "Skipped VideoAR Fix."
+
+	  return -1
 
 	##patch file code
 	#for i in range(0,len(patch_address)):
@@ -431,9 +441,8 @@ def VideoARFix_v1_patch_auto( FileTarget ):
 	for i in range(0,len(patch_address)):
 	  image.seek( patch_address[i]+exeDSPStart )
 	  image.write( patch_value[i] )
-	#print 'VideoARFix v1 exe.img patched'
+	print 'VideoARFix v1 exe.img patched'
 	return 1
-
 
 def calculate_crc( decfile ):
 	cfil = open( decfile, 'rb' )
@@ -487,7 +496,7 @@ def AESdec( secfile, secret='' ):
 	the_data = exeimgsec[16:decrypted_lenght+16]	#16 for 'Salted__' + salt
 
 	cip_aes,tmp = AESprepare( salt )
-	
+
 	print 'Decrypting AES...'
 	the_data = cip_aes.decrypt( the_data )
 
@@ -500,21 +509,21 @@ def AESdec( secfile, secret='' ):
 def AESenc( encfilename, secret='' ):
 	fileenc =  open( encfilename,'rb')
 	salt = 'SamyGO__'
-	
+
 	cip_aes,AES_BLOCK_SIZE = AESprepare( salt )
 	if AES_BLOCK_SIZE != 16:
 		print "TV uses block size of 16 while this encryption using",AES_BLOCK_SIZE
-	
+
 	the_data = fileenc.read()
 	pad = AES_BLOCK_SIZE - len(the_data) % AES_BLOCK_SIZE
 	print 'Encrypting with AES...'
 	the_data = cip_aes.encrypt( the_data+pad*chr(pad) )#Adding last 16 byte block for avoid AES cut
 	print 'done'
-	
+
 	secfilename = encfilename[:encfilename.rfind( '.' )]+'.sec'
 	filesec = open( secfilename,'wb' )
 	filesec.write( 'Salted__' + salt )
-	filesec.write( the_data ) 
+	filesec.write( the_data )
 	filesec.write( 256*'\x30')	#Empty Signature Area
 	filesec.write( '256\n')
 	filesec.close()
@@ -528,7 +537,8 @@ def SamyGO( in_dir ):
 
 	realdir = os.path.realpath( in_dir )
 	#Reading firmware name for using as XOR decryption key
-	key = open( realdir + '/image/info.txt' , 'r' ).read().split(' ')[0];
+	key = open( realdir + '/image/info.txt' , 'r' ).read().split(' ');
+	print "Firmware: ",key[0],'v'+key[1]
 	CIP = False
 	pv  = pt = 0
 	if os.path.isfile( realdir+'/image/exe.img.sec' ):
@@ -537,8 +547,8 @@ def SamyGO( in_dir ):
 		print "Decrypting with AES..."
 		encfile = AESdec( targetfile )
 		print
-		print "Decrypting with XOR key : ", key
-		decfile,md5digg = xor( encfile, key )
+		print "Decrypting with XOR key : ", key[0]
+		decfile,md5digg = xor( encfile, key[0] )
 		CRC = calculate_crc(decfile)
 		filevalid = open(realdir + '/image/validinfo.txt', 'r')
 		ValidCRC = filevalid.read()
@@ -556,8 +566,8 @@ def SamyGO( in_dir ):
 	elif os.path.isfile( realdir+'/image/exe.img.enc' ):
 		targetfile = realdir+'/image/exe.img.enc'
 		print "XOR Encrytped CI firmware detected."
-		print "Decrypting with XOR key : ", key
-		decfile,md5digg = xor( targetfile, key )
+		print "Decrypting with XOR key : ", key[0]
+		decfile,md5digg = xor( targetfile, key[0] )
 		print
 
 	else:
@@ -592,7 +602,7 @@ def SamyGO( in_dir ):
 		print 'Operation successfully completed.'
 		print 'Now you can flash your TV with ' + in_dir +' directory.'
 		if CIP:
-			print 'Please use SamyGO RSA Verify Disabler for disable this tool.'
+			print 'Please use "SamyGO RSA-Disabler Application" before flasing hacked firmware.'
 			print 'DO NOT FORGET THE DISABLE WATCHDOG FROM SERVICE MENU FOR FLASHING'
 	else:
 		print "No Change applied, Aborting..."
