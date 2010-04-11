@@ -22,7 +22,8 @@
 #version = 0.02 #Added & after telnet init for run exeDSP if telnet script returns error or not.
 #version = 0.03 #Added newagehun's VideoAR fix for T-CHL7DEUC v2004.1 Firmware and CLI UI improvements.
 #version = 0.04 #Added VideoAR fix for T-CHEAUSC Firmware version 1012.3 (Usualy named as 2009_DTV_1G_firmware.exe)
-version = 0.05 #Fixed file open mode by forcing binary for windows. Thanks dolak for indicating bug.
+#version = 0.05 #Fixed file open mode by forcing binary for windows. Thanks dolak for indicating bug.
+version = 0.06 #Fixed the CRC sign problem. Thanks atempbloggs for indicating bug.
 
 import os
 import sys
@@ -171,7 +172,7 @@ def calculate_crc( decfile ):
 	print "Calculatin new CRC : ",
 	cfil = open( decfile, 'rb' )
 	crc = binascii.crc32('')
-	crc = binascii.crc32(cfil.read(),crc)
+	crc = binascii.crc32(cfil.read(),crc) & 0xffffffff
 	print "%x" % crc
 	return crc
 
