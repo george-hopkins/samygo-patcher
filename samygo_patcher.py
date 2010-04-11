@@ -39,7 +39,8 @@
 #version = 0.19 #Changed XOR key retrieve way. Now ket readed directly from exeDSP... Compatibility for T-CHEAEAC 2005 FW.for LAxxB650T1R
 #version = '0.20' #Added Auto Big & Colorful Subtitle Patch, Modulerized code flow with Extract_exeDSP & Inject_exeDSP functions. Added VideoAR Fix v1 for CI+ devices.
 #version = '0.21' #Added A Series T-RBYDEUC 1013.1 VideoARFix 1.1 by tom_van & Fixed fat16 FAT finding.
-version = '0.22' #Added USB SamyGO/rcSGO starter for T-RBYDEUC by tom_van, T-CHL7DEUC 2004.1 BigSubTitles, SquashFS image support on linux. (T-CHL5DEUC & T-CHE6ASUC support). Also added automated Enable Wiselink Player Hack on T-CHL5DEUC firmwares. Cosmetic fixes...
+#version = '0.22' #Added USB SamyGO/rcSGO starter for T-RBYDEUC by tom_van, T-CHL7DEUC 2004.1 BigSubTitles, SquashFS image support on linux. (T-CHL5DEUC & T-CHE6ASUC support). Also added automated Enable Wiselink Player Hack on T-CHL5DEUC firmwares. Cosmetic fixes...
+version = '0.23' #Fixed FAT16 exeDSP injection. Added T-CHE6AUSC wiselink hack.
 import os
 import sys
 import binascii
@@ -584,6 +585,7 @@ def Inject_exeDSP( FatImage, exeDSPFileName ):
 		print "image file is not FAT16 nor SquasFS image. Please check if it's correctly decrypted"
 		return False
 
+	image.seek(0)
 	#First we needed to extract exeDSP from FAT image
 	boot=image.read(50)
 	BytesPerSector,    = struct.unpack( 'H', boot[0xb:0xb+2] )
@@ -791,6 +793,8 @@ def Patch_Big_Subtitles( exeDSPFileName ):
 	patch_check = ''
 	patch_value = '\x20\x20'
 
+	patched=False
+
 	for i in patch_address:
 		patch_check += exeDSP[i]
 
@@ -817,8 +821,6 @@ def Patch_Big_Subtitles( exeDSPFileName ):
 	ColorKeyAdr, = struct.unpack( 'B', exeDSP[InitCaptionAdr + 0x88:InitCaptionAdr + 0x88 + 1] )
 	ColorKeyAdr = InitCaptionAdr + 0x88 + ColorKeyAdr + 8
 	Color, = struct.unpack( 'I', exeDSP[ColorKeyAdr:ColorKeyAdr+4] )
-
-	patched=False
 
 	print "Colorfull Subtitles ColorKey Adr 0x%X" % ColorKeyAdr + " Color: 0x%X" % Color
 	if Color == 0xFFF0F0F0:
@@ -851,7 +853,7 @@ def AutoPatcher( FileTarget, key ):
 		a = Patch_VideoAR_v1_Fix( exeDSPFileName )
 		b = Patch_Big_Subtitles( exeDSPFileName )
 		c = 0
-		if( key[0] == 'T-CHL5DEUC' ):
+		if( key[0] == 'T-CHL5DEUC' or key[0] == 'T-CHE6AUSC'):
 			c = Patch_Wiselink_Player_Hack( exeDSPFileName )
 		if a or b or c:
 			return Inject_exeDSP( FileTarget, exeDSPFileName )
