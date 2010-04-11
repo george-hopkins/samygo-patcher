@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#    SamyGo Samsung TV Firmware Telnet Enable Patcher
+#    SamyGO Samsung TV Firmware Telnet Enable Patcher
 #    Copyright (C) 2009  Erdem U. Altunyurt
 
 #    This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,8 @@
 #version = 0.06 #Fixed the CRC sign problem. Thanks atempbloggs for indicating bug.
 #version = 0.07 #Added NewAge's VideoAR Fix v2 for T-CHL7DEUC v2004.1 Firmware and patch code improvements.
 #version = 0.08 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2004.0 and 2008.2
-version = 0.09 #Added  VideoAR Fix v1 for T-CHL7DEUC Firmware version 2005.0
+#version = 0.09 #Added  VideoAR Fix v1 for T-CHL7DEUC Firmware version 2005.0
+version = 0.10 #Added  VideoAR Fix v1 for T-CHU7DEUC Firmware version 2009.0
 
 import os
 import sys
@@ -180,6 +181,14 @@ def patch_VideoAR( FileTarget, md5dig ):
 					( 0x1AC5A60, '01', '03' ),
 					( 0x1AC5A6C, '02', '04' ),
 					( 0x1AC5A70, '01', '03' )]
+	elif md5dig == 'a1b3e35f97881703c468a7a72bb759e8':
+		print 'Firmware: T-CHU7DEUC version 2009.0 for UEXXB70XX Devices Detected.'
+		#773000 exeDSP Head
+		patch =[( 0x1AC67B8, '01', '04' ),	
+					( 0x1AC67C0, '02', '01' ),
+					( 0x1AC6AC0, '01', '03' ),
+					( 0x1AC6ACC, '02', '04' ),
+					( 0x1AC6AD0, '01', '03' )]
 			
 	else :
 		print "Oops!: This firmware is unknown for VideoAR patch. Skipped!"
@@ -265,7 +274,7 @@ print
 print '                   -=BIG FAT WARNING!=-'
 print '            You can brick your TV with this tool!'
 print 'Authors accept no responsibility about ANY DAMAGE on your devices!'
-print '         project home: http://SamyGo.sourceforge.net'
+print '         project home: http://SamyGO.sourceforge.net'
 print
 if len(sys.argv) != 2:
 	print "For use this scripty, you have to extract your firmware to a directory first!"
