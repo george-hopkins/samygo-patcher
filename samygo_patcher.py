@@ -40,7 +40,8 @@
 #version = '0.20' #Added Auto Big & Colorful Subtitle Patch, Modulerized code flow with Extract_exeDSP & Inject_exeDSP functions. Added VideoAR Fix v1 for CI+ devices.
 #version = '0.21' #Added A Series T-RBYDEUC 1013.1 VideoARFix 1.1 by tom_van & Fixed fat16 FAT finding.
 #version = '0.22' #Added USB SamyGO/rcSGO starter for T-RBYDEUC by tom_van, T-CHL7DEUC 2004.1 BigSubTitles, SquashFS image support on linux. (T-CHL5DEUC & T-CHE6ASUC support). Also added automated Enable Wiselink Player Hack on T-CHL5DEUC firmwares. Cosmetic fixes...
-version = '0.23' #Fixed FAT16 exeDSP injection. Added T-CHE6AUSC wiselink hack.
+#version = '0.23' #Fixed FAT16 exeDSP injection. Added T-CHE6AUSC wiselink hack.
+version = '0.24' #Fixed syntax in path string
 import os
 import sys
 import binascii
@@ -988,7 +989,7 @@ def SamyGO( in_dir ):
 
 	elif os.path.isfile( realdir+os.path.sep+'image'+os.path.sep+'exe.img'):
 		encmode = 'none'
-		decfile = targetfile = realdir++os.path.sep+'image'+os.path.sep+'exe.img'
+		decfile = targetfile = realdir+os.path.sep+'image'+os.path.sep+'exe.img'
 		print "Plain firmware detected."
 		md5digg = hashlib.md5()
 		df = open( decfile, 'rb' )
