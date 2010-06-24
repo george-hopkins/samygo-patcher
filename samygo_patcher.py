@@ -41,7 +41,9 @@
 #version = '0.21' #Added A Series T-RBYDEUC 1013.1 VideoARFix 1.1 by tom_van & Fixed fat16 FAT finding.
 #version = '0.22' #Added USB SamyGO/rcSGO starter for T-RBYDEUC by tom_van, T-CHL7DEUC 2004.1 BigSubTitles, SquashFS image support on linux. (T-CHL5DEUC & T-CHE6ASUC support). Also added automated Enable Wiselink Player Hack on T-CHL5DEUC firmwares. Cosmetic fixes...
 #version = '0.23' #Fixed FAT16 exeDSP injection. Added T-CHE6AUSC wiselink hack.
-version = '0.24' #Fixed syntax in path string
+#version = '0.24' #Fixed syntax in path string for non encrypted images.
+version = '0.25Beta' #Fat File Extractor & Injector code changed for code. Added Telnet support to LAxxB650 CHEAEAC series.
+#Need to test with SquashFS telnet after release!
 import os
 import sys
 import binascii
@@ -188,49 +190,40 @@ def ReadELF( filename ):
 #Search "#Remove engine logging." string and replaces with ";/etc/telnetd_start.sh&"
 def patch_Telnet( FileTarget ):
 	print 'Applying Telnet Patch...'
-	MB = 1024*1024
-	FileSize = bytesToCheck = os.stat( FileTarget )[6]
-	ifile = open( FileTarget, "r+b" )
-	ifile.seek(0)
-	location = ifile.tell()
-	while ifile.tell() < FileSize:
-		location = ifile.tell()
-		if( location > 24):
-			location -= 24	# recover string if its on MB border
-		ifile.seek( location )
-		data = ifile.read( MB )
-		found = data.find( "#Remove engine logging." )
-		if found != -1 :
-			print
-			print 'Suitable Location Found for Script injection on Image Offset :', location+found
-			var = raw_input("Enable Telnet or Advanced Mode or nothing on image( T/a/n )? ")
+	filepath = Fat_Extract( FileTarget, "RC~1    LOC" )
+	rclocalfile = open( filepath , 'r+b')
+	rclocal = rclocalfile.read()
 
-			print 'Patching File...'
-			ifile.seek( location + found )
-			if var == 'a' or var == 'A':
-				ifile.write( ';/mtd_rwarea/SamyGO.sh&' )
-				print "TV will initiate '/mtd_rwarea/SamyGO.sh' script on each start."
-				print
-			elif var == 'n' or var == 'N':
-				print "Telnet patch skipped."
-				print
-				return False
-			else:
-				ifile.write( ';/etc/telnetd_start.sh&' )
-				print "Telnet Enabled on image."
-				print
-			ifile.close()
-			return True
-		else :
-			sys.stdout.write( "\rSearching %" + str(100*location/FileSize) )
-			sys.stdout.flush()
-	ifile.close()
-	print
-	print 'Oops!: "#Remove engine logging." string not found on image.'
-	print 'Probably this firmware is already patched.'
-	print 'Telnet Patch not applied.'
-	print
-	return False
+	if rclocal.split()[-1].endswith('#via SamyGO Firmware Patcher'):
+		print 'This file is already patched via SamyGO Firmware Patcher'
+		rclocal = rclocal.split()[:-1]
+
+		a=''
+		for i in rclocal:
+			a+=i+'\n'
+		rclocal = a # removes old patcher line
+
+	var = raw_input("Enable Telnet or Advanced Mode or nothing on image( T/a/n )? ")
+
+	if var == 'a' or var == 'A':
+		rclocal += '\n/mtd_rwarea/SamyGO.sh& #via SamyGO Firmware Patcher\n'
+		print "TV will initiate '/mtd_rwarea/SamyGO.sh' script on each start."
+		print
+	elif var == 'n' or var == 'N':
+		print "Telnet patch skipped."
+		print
+		return False
+	else:
+		rclocal += '\n/etc/telnetd_start.sh& #via SamyGO Firmware Patcher\n'
+		print "Telnet Enabled on image."
+		print
+
+	print 'Patching File...'
+	rclocalfile.seek(0)
+	rclocalfile.truncate(0)
+	rclocalfile.write( rclocal )
+	rclocalfile.close()
+	return Fat_Inject( FileTarget, "RC~1    LOC", filepath )
 
 def patch_TelnetRBYDEUC( FileTarget ):
 	print 'Applying Telnet Patch...'
@@ -311,11 +304,11 @@ def patch( FileTarget, md5dig, key ):
 			ifile.close()
 			print 'VideoAR Fix v2 Patched on image.'
 
-			exeDSPFileName = Extract_exeDSP( FileTarget )
+			exeDSPFileName = Fat_Extract( FileTarget, "exeDSP" )
 			if exeDSPFileName != '':
 				#a = Patch_VideoAR_v1_Fix( exeDSPFileName ) #v2 already!
 				if Patch_Big_Subtitles( exeDSPFileName ):
-					Inject_exeDSP( FileTarget, exeDSPFileName )
+					Fat_Inject( FileTarget, "EXEDSP", exeDSPFileName )
 
 		else:				#if there is difference on bytes give error
 			print "Warning! This Firmware or script is CORRUPT!"
@@ -326,7 +319,7 @@ def patch( FileTarget, md5dig, key ):
 
 	elif md5dig == '2f2b172b0ce35e40326ab1594c131f15':
 		print 'Firmware: T-RBYDEUC version 1013.1 for A Series.'
-		exeDSPFileName = Extract_exeDSP( FileTarget )
+		exeDSPFileName = Fat_Extract( FileTarget, "exeDSP" )
 		ifile = open( exeDSPFileName, "r+b" )
 		patch = [( 0x016f43c, '862fe62f224fb87fb87ff36ee36110714211e362107200e11a12e362507200e11512e362507200e11612e36250729f911312e36250729c911412e362107200e11b12e362107200e11c12e362107200e11d12e362107200e11e12e362107200e11f12e362507200e11012e362507200e11112e362507200e112123fd11262e36110712d113dd11262e36110712e113cd2e36110711251122239d112600188018916a1090037d1136437d10b410900e36110711d505a402df208e0ec3004702af03bf01d5111410b8930c709f309f208e0ec3009f508f4fc7020f404704af05bf008e0ec3009f308f2fc70bdf210e05a01160ee36110711e525a422df2047e2afe3bfe1e511141098920c709f309f2e9f5e8f4fc7e20f4047e4afe5bfee9f3e8f2fc7ebdf20df12592ec321ad16641fc7110e0e6f213f22cf11af2e361507113505a402df2e361507114525a422df11291ec312cf313f33cf11af1e36110711d5118211a89e36110711e51182114a009008007380488008c000c02210210022102707901023cf1490140cb4101000000000000f04194f49901188be362107200e11f12e362507200e11012e3625072e361507113511112e3625072e36150711451121241d16641fc71f0a009007a91ec317992ec3218f228f115f2018939a00900e362107200e11f12e36150711457e36150711352e36110711e5117021a01e362107232d313642d550b43090073610831e362507201411012e3625072e361507113511112e36150711352e36110711e5117021a03e3675077e361107123d233641d550b42090002171fd16641fc71ada00900e36150711357e36150711452e36110711d5117021a01e362107217d313642e550b43090073610831e362107201411f12e362507200e11012e36150711452e36110711d5117021a03e3675077e36110710ad233641e550b4209000117e3625072e36150711451121203d16641fc7174a0090088008c0098f49901801d3f0114d112600288f38b13d1136413d10b410900e36110711d5118210489e36110711e5118211c8be362107200e11f12e362507200e11012e3625072e361507113511112e3625072e36150711451121245a009000900707901025cf1490140cb4101e361507113521fe11b6123601d4003612c312141136399d112621fe11b612367', '862f4362962f03e5a62f0fe1b62fc62fd62fe62f224f33d7e87f33d6726033d45d40626a4e0332d0173a322f0269008910ea08e88739028909e90aa023604a9bb03a068f2360479cc039038f02884499236002880b8f02e33d91173a008b136a3b911739008b1369a36850a09360fd723632078d037203ed1ed02f93dd422e051ca009001cd22260094009400fc9fe703630078d027003e118de1f931d40ee050ca009001b93303a078fa36518944039038f9363159501a0090093630d960a9267050fd71a0127031a0447311a8b0b47236820a009008007400438048403d00240020003e80121020c02210260032102100221025cf75600d81d210264f75600801d3f0113640b4733650368636071911738008b13686d95e1e36c928835536c3d4c5c3c214c2730018f036d236d32d02366d836f36e636b147e3d4bf2646c3be365f3660b400476214b0820058de3652ad02bd40b400900e3652adef264f3660b4e0c760820038924d027d40b40090026def366f26404760b4e00e5082003891ed023d40b40090022def366f2640c760b4e00e50820038918d01fd40b40090016def07f1dd29367822f22651cd4d11fc21fb31f0b4ea366fc7fa367922f00e518d9f554c11fb21f831fd41f0b4900e60820038d147f14d40b4e090000e0187f264ff66ef66df66cf66bf66af669f6680b0009008007380468619a00409d41017cf6560008659a009cf6560050809a00c0f656006c7d9a00e0f65600d81d210204f75600587e9a003cf75600806003d1002101d12b410900e099b000d81d210253545649445f476574496e70757457696e646f774d6f6465204572726f720a0053545649445f4765744f757470757457696e646f774d6f6465204572726f720a0000000053545649445f536574496e70757457696e646f774d6f6465204572726f720a0053545649445f5365744f757470757457696e646f774d6f6465204572726f720a00000000506174636865642053657453697a65204d504547204152202530782c20496e2025647825642c204f75742025647825642d25642d25640a0053545649445f53657453697a65204572726f720a0000000032002e00320031003a0031000000000000000000460000000000000047000000b00400001d0000004006000019000000c507000054f75600' ),
 				( 0x033d334, '090009000900090009000900', '01d000e102a01220d81d2102' ),
@@ -353,7 +346,7 @@ def patch( FileTarget, md5dig, key ):
 				ifile.write( binascii.unhexlify(i[2]) )
 			ifile.close()
 			print 'arfix-sh v1.1 Patched on image.'
-			Inject_exeDSP( FileTarget, exeDSPFileName )
+			Fat_Inject( FileTarget, "EXEDSP", exeDSPFileName )
 			return 1
 
 		else:				#if there is difference on bytes give error
@@ -505,8 +498,8 @@ def Inject_Squash_exeDSP( SquashFSImage, exeDSPFileName ):
 		print 'No SquashFS version 3.0 Tools detected.'
 	return False
 
-def Extract_exeDSP( FatImage ):
-	print 'Extracting exeDSP from image'
+def Fat_Extract( FatImage, filename ):
+	print 'Extracting',filename,'from image'
 	image=open( FatImage, 'r+b' )
 
 	if image.read(4) == 'hsqs' :
@@ -522,7 +515,7 @@ def Extract_exeDSP( FatImage ):
 		return ''
 
 	image.seek(0)
-	#First we needed to extract exeDSP from FAT image
+	#First we needed to extract File from FAT image
 	boot=image.read(50)
 	BytesPerSector,    = struct.unpack( 'H', boot[0xb:0xb+2] )
 	ReservedSector,    = struct.unpack( 'H', boot[0xe:0xe+2] )
@@ -540,44 +533,44 @@ def Extract_exeDSP( FatImage ):
 	#the FAT track table goes all the way to HEAD 0 TRACK 0 SECTOR 18
 	image.seek( (NumberOfFAT*SectorsPerFAT+ReservedSector)*BytesPerSector )
 	FAT=image.read( SectorsPerFAT*BytesPerSector )
-	FATexeDSP=''
+	FATofFile=''
 	for i in range(0, len(FAT), 32):
-	  if FAT[i:i+32].startswith('EXEDSP'):
-		 FATexeDSP = FAT[i:i+32]
+	  if FAT[i:i+32].startswith(filename.upper()):
+		 FATofFile = FAT[i:i+32]
 
-	if FATexeDSP == '':
-		print 'No exeDSP file found on image'
+	if FATofFile == '':
+		print 'No',filename,'file found on image'
 		return ''
 
-	exeDSPStartCluster, = struct.unpack( 'H', FATexeDSP[26:28] )
-	exeDSPSize,  = struct.unpack( 'I', FATexeDSP[28:32] )
+	FileStartCluster, = struct.unpack( 'H', FATofFile[26:28] )
+	FileSize,  = struct.unpack( 'I', FATofFile[28:32] )
 
 	#FileStartSector = ReservedSectors(0x0e) + (NumofFAT(0x10) * Sectors2FAT(0x16)) + (MaxRootEntry(0x11) * 32 / BytesPerSector(0x0b)) + ((X - 2) * SectorsPerCluster(0x0d))
-	exeDSPSector= ReservedSector + NumberOfFAT * SectorsPerFAT + MaxRootEntry*32/BytesPerSector + ((exeDSPStartCluster - 2) * SectorsPerCluster)
+	FileSector= ReservedSector + NumberOfFAT * SectorsPerFAT + MaxRootEntry*32/BytesPerSector + ((FileStartCluster - 2) * SectorsPerCluster)
 
-	exeDSPStart = exeDSPSector*BytesPerSector
-	print 'FAT image analyzed - exeDSP location:',exeDSPStart,' size:', exeDSPSize
-	image.seek( exeDSPStart )
-	exeDSP = image.read( exeDSPSize )
+	FileStart = FileSector*BytesPerSector
+	print 'FAT image analyzed - exeDSP location:',FileStart,' size:', FileSize
+	image.seek( FileStart )
+	FileInString = image.read( FileSize )
 
-	#Create exeDSP file
+	#Create File file
 	info = open(os.path.dirname( FatImage )+os.path.sep+'info.txt').read().split(' ')
-	exeDSPFileName=os.path.dirname( FatImage )+os.path.sep+"exeDSP"+'-'+info[0]+'-'+info[1].strip();
-	exeDSPFile=open( exeDSPFileName, 'w+b' )
-	exeDSPFile.write( exeDSP )
-	exeDSPFile.close()
-	print 'exeDSP file created at : ', exeDSPFileName
+	FilePath=os.path.dirname( FatImage )+os.path.sep+filename+'-'+info[0]+'-'+info[1].strip();
+	FileFile=open( FilePath, 'w+b' )
+	FileFile.write( FileInString )
+	FileFile.close()
+	print filename,'file created at : ', FilePath
 	print
-	return exeDSPFileName
+	return FilePath
 
-def Inject_exeDSP( FatImage, exeDSPFileName ):
-	print 'Injecting modified exeDSP file to image'
+def Fat_Inject( FatImage, filename, pathname ):
+	print 'Injecting modified ',filename,' file to image'
 	image=open( FatImage, 'r+b' )
 
 	if image.read(4) == 'hsqs' :
 		image.close()
 		print 'SquashFS image type.'
-		return Inject_Squash_exeDSP( FatImage, exeDSPFileName )
+		return Inject_Squash_exeDSP( FatImage, pathname )
 
 	image.seek(54)
 	if image.read(5) == ('FAT16' ) :
@@ -587,7 +580,7 @@ def Inject_exeDSP( FatImage, exeDSPFileName ):
 		return False
 
 	image.seek(0)
-	#First we needed to extract exeDSP from FAT image
+	#First we needed to extract File from FAT image
 	boot=image.read(50)
 	BytesPerSector,    = struct.unpack( 'H', boot[0xb:0xb+2] )
 	ReservedSector,    = struct.unpack( 'H', boot[0xe:0xe+2] )
@@ -600,33 +593,40 @@ def Inject_exeDSP( FatImage, exeDSPFileName ):
 	image.seek( (NumberOfFAT*SectorsPerFAT+ReservedSector)*BytesPerSector )
 	FAT=image.read( SectorsPerFAT*BytesPerSector )
 
-	FATexeDSP=''
+	FATofFile=''
 	for i in range(0, len(FAT), 32):
-	  if FAT[i:i+32].startswith('EXEDSP'):
-		 FATexeDSP = FAT[i:i+32]
+	  if FAT[i:i+32].startswith(filename):
+		 FATofFile = FAT[i:i+32]
 
-	if FATexeDSP == '':
-		print 'No exeDSP file found on image'
+	if FATofFile == '':
+		print 'No',filename,'file found on image'
 		return False
 
-	exeDSPStartCluster, = struct.unpack( 'H', FATexeDSP[26:28] )
-	exeDSPSize,  = struct.unpack( 'I', FATexeDSP[28:32] )
+	FileStartCluster, = struct.unpack( 'H', FATofFile[26:28] )
+	FileSize,  = struct.unpack( 'I', FATofFile[28:32] )
 
 	#FileStartSector = ReservedSectors(0x0e) + (NumofFAT(0x10) * Sectors2FAT(0x16)) + (MaxRootEntry(0x11) * 32 / BytesPerSector(0x0b)) + ((X - 2) * SectorsPerCluster(0x0d))
-	exeDSPSector= ReservedSector + NumberOfFAT * SectorsPerFAT + MaxRootEntry*32/BytesPerSector + ((exeDSPStartCluster - 2) * SectorsPerCluster)
+	FileSector= ReservedSector + NumberOfFAT * SectorsPerFAT + MaxRootEntry*32/BytesPerSector + ((FileStartCluster - 2) * SectorsPerCluster)
 
-	exeDSPStart = exeDSPSector*BytesPerSector
-	print 'FAT image analyzed - exeDSP location:',exeDSPStart,' size:', exeDSPSize
-	exeDSPFile=open( exeDSPFileName, 'rb' )
-	exeDSP = exeDSPFile.read()
-	exeDSPFile.close()
-	print 'Injection Size : ', len(exeDSP)
-	if exeDSPSize != len(exeDSP):
-		print 'Error, injection file has different size than original exeDSP.'
-		return False
-	else:
-		image.seek( exeDSPStart )
-		image.write( exeDSP )
+	FileStart = FileSector*BytesPerSector
+	print 'FAT image analyzed - File location:',FileStart,' size:', FileSize
+	FileFile=open( pathname, 'rb' )
+	FileInString = FileFile.read()
+	FileFile.close()
+
+	print 'Injection Size : ', len(FileInString)
+	if len(FileInString) != FileSize:
+		if FileSize/BytesPerSector == len(FileInString)/BytesPerSector:	#if sector count not changed, it's safe to inject
+			print '''Warning: injection file has different size than original File. But doens't require new sector.'''
+			for i in range(0, len(FAT), 32):
+				if FAT[i:i+32].startswith(filename):
+					image.seek( (NumberOfFAT*SectorsPerFAT+ReservedSector)*BytesPerSector + i + 28 )
+					image.write( struct.pack('I', len(FileInString)) )
+		else:
+			print 'Injection requires new sector! Aborted.'
+			return False
+	image.seek( FileStart )
+	image.write( FileInString )
 	image.close()
 	return True
 
@@ -849,7 +849,7 @@ def Patch_Big_Subtitles( exeDSPFileName ):
 	return patched
 
 def AutoPatcher( FileTarget, key ):
-	exeDSPFileName = Extract_exeDSP( FileTarget )
+	exeDSPFileName = Fat_Extract( FileTarget, "exeDSP" )
 	if exeDSPFileName != '':
 		a = Patch_VideoAR_v1_Fix( exeDSPFileName )
 		b = Patch_Big_Subtitles( exeDSPFileName )
@@ -857,7 +857,7 @@ def AutoPatcher( FileTarget, key ):
 		if( key[0] == 'T-CHL5DEUC' or key[0] == 'T-CHE6AUSC'):
 			c = Patch_Wiselink_Player_Hack( exeDSPFileName )
 		if a or b or c:
-			return Inject_exeDSP( FileTarget, exeDSPFileName )
+			return Fat_Inject( FileTarget, "EXEDSP", exeDSPFileName )
 	else:
 		return False
 
@@ -989,7 +989,7 @@ def SamyGO( in_dir ):
 
 	elif os.path.isfile( realdir+os.path.sep+'image'+os.path.sep+'exe.img'):
 		encmode = 'none'
-		decfile = targetfile = realdir+os.path.sep+'image'+os.path.sep+'exe.img'
+		decfile = targetfile = realdir + os.path.sep+'image'+os.path.sep+'exe.img'
 		print "Plain firmware detected."
 		md5digg = hashlib.md5()
 		df = open( decfile, 'rb' )
