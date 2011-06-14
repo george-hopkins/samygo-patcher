@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-#    SamyGO Samsung TV Firmware Telnet Enable Patcher
-#    Copyright (C) 2010  Erdem U. Altunyurt
+#    SamyGO Samsung TV Firmware Patcher
+#    Copyright (C) 2010-2011  Erdem U. Altunyurt
 
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
+#    any later version.
 
 #    This program is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,7 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-#    SamyGo Home Page: http://samygo.sourceforge.net
+#    SamyGo Home Page: http://www.samygo.tv
 
 #version = 0.01 #initial Release
 #version = 0.02 #Added & after telnet init for run exeDSP if telnet script returns error or not.
@@ -44,7 +44,8 @@
 #version = '0.24' #Fixed syntax in path string for non encrypted images.
 #version = '0.25Beta' #Fat File Extractor & Injector code changed for code. Added Telnet support to LAxxB650 CHEAEAC series.
 #Need to test with SquashFS telnet after release!
-version = '0.26' #Upgrade arfix-sh4 for T-RBYDEUC 1013.1 to version 1.2 (tom_van)
+#version = '0.26' #Upgrade arfix-sh4 for T-RBYDEUC 1013.1 to version 1.2 (tom_van)
+version = '0.30 Alpha' #Added C & D image decryption support. SamyGO function partitioned...
 import os
 import sys
 import binascii
@@ -270,7 +271,7 @@ def patch_TelnetRBYDEUC( FileTarget ):
 
 #Detect exact file using MD5 Hasf of it.
 #Than changes defined bytes with given values.
-def patch( FileTarget, md5dig, key ):
+def patch( FileTarget, md5dig, firmware ):
 	print 'Applying Patches...'
 	FileSize = bytesToCheck = os.stat( FileTarget )[6]
 	patch = []
@@ -358,7 +359,7 @@ def patch( FileTarget, md5dig, key ):
 			ifile.close()
 			return -1
 
-	elif AutoPatcher( FileTarget, key ) == 0:
+	elif AutoPatcher( FileTarget, firmware ) == 0:
 		print
 		return 0
 	print
@@ -851,13 +852,13 @@ def Patch_Big_Subtitles( exeDSPFileName ):
 
 	return patched
 
-def AutoPatcher( FileTarget, key ):
+def AutoPatcher( FileTarget, firmware ):
 	exeDSPFileName = Fat_Extract( FileTarget, "exeDSP" )
 	if exeDSPFileName != '':
 		a = Patch_VideoAR_v1_Fix( exeDSPFileName )
 		b = Patch_Big_Subtitles( exeDSPFileName )
 		c = 0
-		if( key[0] == 'T-CHL5DEUC' or key[0] == 'T-CHE6AUSC'):
+		if( firmware == 'T-CHL5DEUC' or firmware == 'T-CHE6AUSC'):
 			c = Patch_Wiselink_Player_Hack( exeDSPFileName )
 		if a or b or c:
 			return Fat_Inject( FileTarget, "EXEDSP", exeDSPFileName )
@@ -871,7 +872,7 @@ def calculate_crc( decfile ):
 	print "Calculated CRC : 0x%X" % crc
 	return crc
 
-def AESprepare( salt, secret='' ):
+def AESprepare( salt, secret='', firmware='' ):
 	try:
 		from Crypto.Cipher import AES
 	except ImportError:
@@ -883,7 +884,22 @@ def AESprepare( salt, secret='' ):
 		sys.exit()
 
 	if len( secret )==0:
-		secret = "A435HX:d3e90afc-0f09-4054-9bac-350cc8dfc901-7cee72ea-15ae-45ce-b0f5-611c4f8d4a71"
+		secret = "A435HX:d3e90afc-0f09-4054-9bac-350cc8dfc901-7cee72ea-15ae-45ce-b0f5-"
+		if firmware in ["T-GASDEUC","T-GAPDEUC","T-GAS6DEUC","T-GAP8DEUC"]: #D series AES key
+			secret = "SHWJUH:85a045ae-2296-484c-b457-ede832fcfbe1-646390a3-105e-40aa-85f6-"
+			secret += "da3086c70111"
+		elif firmware=="T-MST4DEUC":
+			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
+			sys.exit()
+		elif firmware=="T-VALDEUC":#C series AES key
+			secret += "00001abc2010"
+		elif firmware=="T-TDT5DAAC":
+			secret += "00002abc2010"
+		elif firmware in ["T-MSX5DAAC","T-MSX5DEUC"]:
+			secret += "00004abc2010"
+ 		else: #B Series AES key
+			secret +="611c4f8d4a71"
+
 	print 'secret key : ', secret
 
 	sha_secret = hashlib.sha1()
@@ -900,7 +916,7 @@ def AESprepare( salt, secret='' ):
 	cip_aes = AES.new( key.digest(), AES.MODE_CBC, iv.digest() )
 	return cip_aes,AES.block_size
 
-def AESdec( secfile, secret='' ):
+def AESdec( secfile, secret='', firmware='' ):
 	filesec =  open( secfile,'rb')
 	exeimgsec = filesec.read()
 	signature_lenght=int(exeimgsec[-4:-1])
@@ -914,7 +930,7 @@ def AESdec( secfile, secret='' ):
 	salt=exeimgsec[8:16]
 	the_data = exeimgsec[16:decrypted_lenght+16]	#16 for 'Salted__' + salt
 
-	cip_aes,tmp = AESprepare( salt )
+	cip_aes,tmp = AESprepare( salt, firmware=firmware )
 
 	print 'Decrypting AES...'
 	the_data = cip_aes.decrypt( the_data )
@@ -925,11 +941,11 @@ def AESdec( secfile, secret='' ):
 	fileenc.close()
 	return encfilename
 
-def AESenc( encfilename, secret='' ):
+def AESenc( encfilename, secret='', firmware='' ):
 	fileenc =  open( encfilename,'rb')
 	salt = 'SamyGO__'
 
-	cip_aes,AES_BLOCK_SIZE = AESprepare( salt )
+	cip_aes,AES_BLOCK_SIZE = AESprepare( salt, firmware=firmware )
 	if AES_BLOCK_SIZE != 16:
 		print "TV uses block size of 16 while this encryption using",AES_BLOCK_SIZE
 
@@ -948,24 +964,36 @@ def AESenc( encfilename, secret='' ):
 	filesec.close()
 	return secfilename
 
-#Main function, receives firmware's root directory
-def SamyGO( in_dir ):
+def SamsungSerie( firmware=''):
+	A=["T-RBYDEUC"]
+	B=["T-CHL7DEUC","T-CHL5DEUC","T-CHE7AUSC","T-CHL7DAUC","T-CHU7DAUC","T-CHU7DEUC","T-CHLCIPDEUC","T-CHL5CIPDEUC","T-CHL6CIPDEUC","T-CHUCIPDEUC"]
+	C=["T-VALDEUC","T-VAL4DEUC","T-TDT5DAAC","T-MSX5DAAC","T-MSX5DEUC"]
+	D=["T-GASDEUC","T-GAS6DEUC","T-GAPDEUC","T-GAP8DEUC","T-MST4DEUC"]
+	if( firmware in A ):
+		return "A"
+	elif firmware in B:
+		return "B"
+	elif firmware in C:
+		return "C"
+	elif firmware in D:
+		return "D"
+
+def Decryptor( in_dir ):
 	if not os.path.isdir( in_dir ):
 		print "No valid directory with name of " + in_dir
-		return False
+		sys.exit()
 	encmode = 'none'
 	realdir = os.path.realpath( in_dir )
 	#Reading firmware name for using as XOR decryption key
 	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
 	print "Firmware: ",key[0],'v'+key[1]
-	pv  = pt = 0
 	xorkey = ''
 	if os.path.isfile( realdir + os.path.sep + 'image' + os.path.sep + 'exe.img.sec' ):
 		encmode = 'CI+'
 		targetfile = realdir+os.path.sep+'image'+os.path.sep+'exe.img.sec'
 		print "AES Encrytped CI+ firmware detected."
 		print "Decrypting with AES..."
-		encfile = AESdec( targetfile )
+		encfile = AESdec( targetfile, firmware=key[0] )
 		print
 		print "Decrypting with ",
 		decfile,md5digg,xorkey = xor( encfile )
@@ -978,7 +1006,7 @@ def SamyGO( in_dir ):
 
 		if CRC != ValidCRC:
 			print 'Error on Decryption'
-			return False
+			sys.exit()
 		else:
 			print 'CRC Validation passed'
 
@@ -989,6 +1017,7 @@ def SamyGO( in_dir ):
 		print "Decrypting with ",
 		decfile,md5digg,xorkey = xor( targetfile )
 		print
+		return (xorkey,md5digg,decfile,encmode)
 
 	elif os.path.isfile( realdir+os.path.sep+'image'+os.path.sep+'exe.img'):
 		encmode = 'none'
@@ -1000,19 +1029,47 @@ def SamyGO( in_dir ):
 		md5digg = md5digg.hexdigest()
 		df.close()
 		print
+		return (xorkey,md5digg,decfile,encmode)
 
 	else:
 		print 'No exe.img files found in directory of ' + in_dir
-		return False
+		sys.exit()
 
-	pv = patch( decfile, md5digg, key )
-	if key[0] == 'T-RBYDEUC':
+def Encryptor(in_dir, encmode=''):
+	realdir = os.path.realpath( in_dir )
+	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
+	firmware=key[0]
+	if SamsungSerie(firmware) in ('C','D'):
+		encmode='CI+'
+
+	if encmode != 'none':
+		print "Encrypting with ",
+		decfile = realdir+os.path.sep+'image'+os.path.sep+'exe.img'
+		encfile,tmp,tmp = xor( decfile, firmware )	#which means target file exe.img.enc now
+		os.remove( decfile )
+		if encmode == 'CI+':
+			AESenc( encfile, firmware=firmware )	#now become targetfile exe.img.sec
+			os.remove( encfile )
+
+	print 'Operation successfully completed.'
+	print 'Now you can flash your TV with ' + in_dir +' directory.'
+	if encmode == 'CI+':
+		print 'Please use "SamyGO RSA-Disabler Application" before flasing hacked firmware.'
+		print 'DO NOT FORGET THE DISABLE WATCHDOG FROM SERVICE MENU FOR FLASHING'
+
+#Main function, receives firmware's root directory
+def SamyGO( in_dir , mode):
+	pv  = pt = 0
+	firmware,md5digg,decfile,encmode = Decryptor( in_dir )
+	pv = patch( decfile, md5digg, firmware )
+	if firmware == 'T-RBYDEUC':
 	  pt = patch_TelnetRBYDEUC( decfile )
 	else:
 	  pt = patch_Telnet( decfile )
 
 	if (pt or pv) and (pv != -1):	#if Telnet or Video patch applied
 		crc = calculate_crc( decfile )
+		realdir = os.path.realpath( in_dir )
 		validfile = open(realdir + os.path.sep+ 'image'+os.path.sep+'validinfo.txt', 'r+')
 		loc = validfile.read().find('exe.img_')
 		validfile.seek( loc+8 )
@@ -1020,36 +1077,42 @@ def SamyGO( in_dir ):
 		validfile.write( "%08x" % crc )
 		validfile.close()
 		print
+		Encryptor( in_dir, encmode )
 
-		if encmode != 'none':
-			print "Encrypting with ",
-			encfile,tmp,tmp = xor( decfile, xorkey )	#which means target file exe.img.enc now
-			os.remove( decfile )
-			if encmode == 'CI+':
-				AESenc( encfile )	#now become targetfile exe.img.sec
-				os.remove( encfile )
-
-		print 'Operation successfully completed.'
-		print 'Now you can flash your TV with ' + in_dir +' directory.'
-		if encmode == 'CI+':
-			print 'Please use "SamyGO RSA-Disabler Application" before flasing hacked firmware.'
-			print 'DO NOT FORGET THE DISABLE WATCHDOG FROM SERVICE MENU FOR FLASHING'
 	else:
 		print "No Change applied, Aborting..."
 
-print "SamyGO Firmware Patcher v" + str(version) + " (c) 2010 Erdem U. Altinyurt"
+def ShowHelp():
+	print "For use this script, you have to extract your firmware to a directory first!"
+	print
+	print "Than for patching a B series TV firmwares you can patch your FW by this command:"
+	print "\tusage: python " + sys.argv[0] + " patch <path to extracted firmware directory>"
+	print "\texample: python " + sys.argv[0] + " patch ./T-CHL7DEUC/"
+	print
+	print "Or you can decrypt/encrypt your A/B/C/D Series TV firmwares by this command"
+	print "\tusage: python " + sys.argv[0] + " decrypt / encrypt <path to extracted firmware directory>"
+	print "\texample: python " + sys.argv[0] + " decrypt ./T-VALDEUC/"
+	print "\texample: python " + sys.argv[0] + " encrypt ./T-VALDEUC/"
+
+
+
+
+
+print "SamyGO Firmware Patcher v" + str(version) + " (c) 2010-2011 Erdem U. Altinyurt"
 print
 print '                   -=BIG FAT WARNING!=-'
 print '            You can brick your TV with this tool!'
 print 'Authors accept no responsibility about ANY DAMAGE on your devices!'
-print '         project home: http://SamyGO.sourceforge.net'
+print '         project home: http://www.SamyGO.tv'
 print
-if len(sys.argv) != 2:
-	print "For use this script, you have to extract your firmware to a directory first!"
-	print "usage: python " + sys.argv[0] + " <path to extracted directory from firmware>"
-	print "example: python " + sys.argv[0] + " ./T-CHL7DEUC/"
-	print
-
+if len(sys.argv) != 3 or sys.argv[1] not in ('decrypt','encrypt', 'patch'):
+	ShowHelp()
+	sys.exit()
+elif sys.argv[1].lower()=='patch':
+	SamyGO( sys.argv[2] )
+elif sys.argv[1].lower()=='decrypt':
+	Decryptor( sys.argv[2] )
+elif sys.argv[1].lower()=='encrypt':
+	Encryptor( sys.argv[2] )
 else:
-	SamyGO( sys.argv[1] )
-
+	ShowHelp()
