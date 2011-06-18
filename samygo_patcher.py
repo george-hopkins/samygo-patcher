@@ -966,25 +966,68 @@ def AESenc( encfilename, secret='', firmware='' ):
 
 def SamsungSerie( firmware=''):
 	A=["T-RBYDEUC"]
-	B=["T-CHL7DEUC","T-CHL5DEUC","T-CHE7AUSC","T-CHL7DAUC","T-CHU7DAUC","T-CHU7DEUC","T-CHLCIPDEUC","T-CHL5CIPDEUC","T-CHL6CIPDEUC","T-CHUCIPDEUC"]
+	B=["T-CHL7DEUC","T-CHL5DEUC","T-CHE7AUSC","T-CHL7DAUC","T-CHU7DAUC","T-CHU7DEUC"]
+	Bp=["T-CHLCIPDEUC","T-CHL5CIPDEUC","T-CHL6CIPDEUC","T-CHUCIPDEUC"]
 	C=["T-VALDEUC","T-VAL4DEUC","T-TDT5DAAC","T-MSX5DAAC","T-MSX5DEUC"]
 	D=["T-GASDEUC","T-GAS6DEUC","T-GAPDEUC","T-GAP8DEUC","T-MST4DEUC"]
 	if( firmware in A ):
 		return "A"
 	elif firmware in B:
 		return "B"
+	elif firmware in Bp:
+		return "B+"
 	elif firmware in C:
 		return "C"
 	elif firmware in D:
 		return "D"
+
+def DecryptAll( in_dir ):
+	if not os.path.isdir( in_dir ):
+		print "No valid directory with name of " + in_dir
+		sys.exit()
+	realdir = os.path.realpath( in_dir )
+	#Reading firmware name for using as XOR decryption key
+	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
+	print "Firmware: ",key[0],'v'+key[1]
+	xorkey = ''
+	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
+	files = os.listdir( fwdir )
+	files = [i for i in files if i.endswith('sec') or i.endswith('enc')]
+	if SamsungSerie(key[0]) in ('B+','C','D'):
+		encmode='CI+'
+	if len(files) > 0:
+		if( encmode == 'CI+')
+			print "AES Encrytped CI+ firmware detected."
+		for f in files:
+			print "Processing file", f
+			if( encmode == 'CI+')
+				encfile = AESdec( fwdir + os.path.sep + f, firmware=key[0] )
+			else:
+				encfile = fwdir + os.path.sep + f
+			print "Decrypting with ",
+			decfile,md5digg,xorkey = xor( encfile,key[0] )
+			CRC = calculate_crc(decfile)
+			filevalid = open(realdir + os.path.sep +'image' + os.path.sep + 'validinfo.txt', 'r')
+			ValidCRC = filevalid.read()
+			filevalid.close()
+			searchfor = f[:-4]+'_'
+			CRCstart = ValidCRC.find( searchfor )+len(searchfor)
+			ValidCRC = int(ValidCRC[CRCstart:CRCstart+8], 16)
+			if CRC != ValidCRC:
+				print 'Error on Decryption'
+				sys.exit()
+			else:
+				print 'CRC Validation passed'
+				print
+				print
 
 def Decryptor( in_dir ):
 	if not os.path.isdir( in_dir ):
 		print "No valid directory with name of " + in_dir
 		sys.exit()
 	encmode = 'none'
-	realdir = os.path.realpath( in_dir )
 	#Reading firmware name for using as XOR decryption key
+	realdir = os.path.realpath( in_dir )
 	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
 	print "Firmware: ",key[0],'v'+key[1]
 	xorkey = ''
@@ -1034,6 +1077,44 @@ def Decryptor( in_dir ):
 	else:
 		print 'No exe.img files found in directory of ' + in_dir
 		sys.exit()
+
+def EncryptAll( in_dir ):
+	if not os.path.isdir( in_dir ):
+		print "No valid directory with name of " + in_dir
+		sys.exit()
+	realdir = os.path.realpath( in_dir )
+	#Reading firmware name for using as XOR decryption key
+	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
+	print "Firmware: ",key[0],'v'+key[1]
+	xorkey = ''
+	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
+	files = ['Image','exe.img','appext.img','rootfs.img']
+	files = [i for i in files if os.path.isfile(fwdir+os.path.sep+i)]
+	if SamsungSerie(key[0]) in ('B+','C','D'):
+		encmode='CI+'
+	print "FileS",files
+	if len(files) > 0:
+		if encmode == 'CI+':
+			print "AES Encrytped CI+ firmware detected."
+		for f in files:
+			print "Processing file:", f
+			print "Encrypting with ",
+			CRC = calculate_crc(fwdir + os.path.sep + f)
+			validfile = open(realdir + os.path.sep+ 'image'+os.path.sep+'validinfo.txt', 'r+')
+			searchfile= f+'_';
+			loc = validfile.read().find(searchfile)+len(searchfile)
+			validfile.seek( loc )
+			print "Updating " + realdir +os.path.sep+ 'image'+os.path.sep+'validinfo.txt with new CRC.'
+			validfile.write( "%08x" % CRC )
+			validfile.close()
+			decfile,md5digg,xorkey = xor( fwdir + os.path.sep + f,key[0] )
+			print "Writen file",decfile	
+			if encmode == 'CI+':
+				encfile=AESenc( decfile, firmware=key[0] )
+				print "Writen file",encfile
+			print
+			print
+
 
 def Encryptor(in_dir, encmode=''):
 	realdir = os.path.realpath( in_dir )
@@ -1093,7 +1174,8 @@ def ShowHelp():
 	print "\tusage: python " + sys.argv[0] + " decrypt / encrypt <path to extracted firmware directory>"
 	print "\texample: python " + sys.argv[0] + " decrypt ./T-VALDEUC/"
 	print "\texample: python " + sys.argv[0] + " encrypt ./T-VALDEUC/"
-
+	print
+	print "\tusage: python " + sys.argv[0] + " decrypt_all / encrypt_all <path to extracted firmware directory>"
 
 
 
@@ -1105,7 +1187,7 @@ print '            You can brick your TV with this tool!'
 print 'Authors accept no responsibility about ANY DAMAGE on your devices!'
 print '         project home: http://www.SamyGO.tv'
 print
-if len(sys.argv) != 3 or sys.argv[1] not in ('decrypt','encrypt', 'patch'):
+if len(sys.argv) != 3 or sys.argv[1] not in ('decrypt','encrypt', 'patch', 'decrypt_all','encrypt_all'):
 	ShowHelp()
 	sys.exit()
 elif sys.argv[1].lower()=='patch':
@@ -1114,5 +1196,9 @@ elif sys.argv[1].lower()=='decrypt':
 	Decryptor( sys.argv[2] )
 elif sys.argv[1].lower()=='encrypt':
 	Encryptor( sys.argv[2] )
+elif sys.argv[1].lower()=='decrypt_all':
+	DecryptAll( sys.argv[2] )
+elif sys.argv[1].lower()=='encrypt_all':
+	EncryptAll( sys.argv[2] )
 else:
 	ShowHelp()
