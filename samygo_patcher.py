@@ -1088,7 +1088,7 @@ def EncryptAll( in_dir ):
 	print "Firmware: ",key[0],'v'+key[1]
 	xorkey = ''
 	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
-	files = ['Image','exe.img','appext.img','rootfs.img']
+	files = ['Image','exe.img','appext.img','rootfs.img','appdata.img']
 	files = [i for i in files if os.path.isfile(fwdir+os.path.sep+i)]
 	if SamsungSerie(key[0]) in ('B+','C','D'):
 		encmode='CI+'
