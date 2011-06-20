@@ -885,17 +885,17 @@ def AESprepare( salt, secret='', firmware='' ):
 
 	if len( secret )==0:
 		secret = "A435HX:d3e90afc-0f09-4054-9bac-350cc8dfc901-7cee72ea-15ae-45ce-b0f5-"
-		if firmware in ["T-GASDEUC","T-GAPDEUC","T-GAS6DEUC","T-GAP8DEUC"]: #D series AES key
+		if firmware.startswith( "T-GA" ):#T-GAS & T-GAP
 			secret = "SHWJUH:85a045ae-2296-484c-b457-ede832fcfbe1-646390a3-105e-40aa-85f6-"
 			secret += "da3086c70111"
-		elif firmware=="T-MST4DEUC":
+		elif firmware.startswith("T-MST"):
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
 			sys.exit()
-		elif firmware=="T-VALDEUC":#C series AES key
+		elif firmware.startswith("T-VAL"):#C series AES key
 			secret += "00001abc2010"
-		elif firmware=="T-TDT5DAAC":
+		elif firmware.startswith("T-TDT"):
 			secret += "00002abc2010"
-		elif firmware in ["T-MSX5DAAC","T-MSX5DEUC"]:
+		elif firmware.startswith("T-MSX"):
 			secret += "00004abc2010"
  		else: #B Series AES key
 			secret +="611c4f8d4a71"
@@ -972,13 +972,13 @@ def SamsungSerie( firmware=''):
 	D=["T-GASDEUC","T-GAS6DEUC","T-GAPDEUC","T-GAP8DEUC","T-MST4DEUC"]
 	if( firmware in A ):
 		return "A"
-	elif firmware in B:
-		return "B"
 	elif firmware in Bp:
 		return "B+"
-	elif firmware in C:
+	elif firmware.startswith("T-CH"):
+		return "B"
+	elif firmware.startswith("T-VAL") or firmware.startswith("T-MSX") or firmware.startswith("T-TDT"): 
 		return "C"
-	elif firmware in D:
+	elif firmware.startswith("T-GA") or firmware.startswith("T-MST"):
 		return "D"
 
 def DecryptAll( in_dir ):
