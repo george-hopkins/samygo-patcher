@@ -996,11 +996,11 @@ def DecryptAll( in_dir ):
 	if SamsungSerie(key[0]) in ('B+','C','D'):
 		encmode='CI+'
 	if len(files) > 0:
-		if( encmode == 'CI+')
+		if( encmode == 'CI+'):
 			print "AES Encrytped CI+ firmware detected."
 		for f in files:
 			print "Processing file", f
-			if( encmode == 'CI+')
+			if( encmode == 'CI+'):
 				encfile = AESdec( fwdir + os.path.sep + f, firmware=key[0] )
 			else:
 				encfile = fwdir + os.path.sep + f
@@ -1139,7 +1139,7 @@ def Encryptor(in_dir, encmode=''):
 		print 'DO NOT FORGET THE DISABLE WATCHDOG FROM SERVICE MENU FOR FLASHING'
 
 #Main function, receives firmware's root directory
-def SamyGO( in_dir , mode):
+def SamyGO( in_dir ):
 	pv  = pt = 0
 	firmware,md5digg,decfile,encmode = Decryptor( in_dir )
 	pv = patch( decfile, md5digg, firmware )
