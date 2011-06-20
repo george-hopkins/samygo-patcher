@@ -995,6 +995,8 @@ def DecryptAll( in_dir ):
 	files = [i for i in files if i.endswith('sec') or i.endswith('enc')]
 	if SamsungSerie(key[0]) in ('B+','C','D'):
 		encmode='CI+'
+	elif SamsungSerie(key[0]) in ('B'):
+		encmode='CI'
 	if len(files) > 0:
 		if( encmode == 'CI+'):
 			print "AES Encrytped CI+ firmware detected."
@@ -1092,6 +1094,8 @@ def EncryptAll( in_dir ):
 	files = [i for i in files if os.path.isfile(fwdir+os.path.sep+i)]
 	if SamsungSerie(key[0]) in ('B+','C','D'):
 		encmode='CI+'
+	elif SamsungSerie(key[0]) in ('B'):
+		encmode='CI'
 	print "FileS",files
 	if len(files) > 0:
 		if encmode == 'CI+':
