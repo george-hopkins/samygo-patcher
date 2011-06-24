@@ -975,7 +975,10 @@ def SamsungSerie( firmware=''):
 	elif firmware in Bp:
 		return "B+"
 	elif firmware.startswith("T-CH"):
-		return "B"
+		if os.path.isfile( firmware + os.path.sep + 'image' + os.path.sep + 'major_version' ):
+			return "B+"
+		else:
+			return "B"
 	elif firmware.startswith("T-VAL") or firmware.startswith("T-MSX") or firmware.startswith("T-TDT"): 
 		return "C"
 	elif firmware.startswith("T-GA") or firmware.startswith("T-MST"):
