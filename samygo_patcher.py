@@ -45,7 +45,7 @@
 #version = '0.25Beta' #Fat File Extractor & Injector code changed for code. Added Telnet support to LAxxB650 CHEAEAC series.
 #Need to test with SquashFS telnet after release!
 #version = '0.26' #Upgrade arfix-sh4 for T-RBYDEUC 1013.1 to version 1.2 (tom_van)
-version = '0.30 Alpha' #Added C & D image decryption support. SamyGO function partitioned...
+version = '0.30' #Added C & D image decryption support. SamyGO function partitioned...
 import os
 import sys
 import binascii
@@ -888,7 +888,10 @@ def AESprepare( salt, secret='', firmware='' ):
 		if firmware.startswith( "T-GA" ):#T-GAS & T-GAP
 			secret = "SHWJUH:85a045ae-2296-484c-b457-ede832fcfbe1-646390a3-105e-40aa-85f6-"
 			secret += "da3086c70111"
-		elif firmware.startswith("T-MST"):
+		elif firmware.startswith("T-MST5"):#T-MST5
+			secret = "SHWJUH:eceb2c14-db11-425e-9ebf-5f9607f0eb4b-3c38193e-751e-4719-8884-"
+			secret += "9e76322c0cec"
+		elif firmware.startswith("T-MST4"):
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
 			sys.exit()
 		elif firmware.startswith("T-VAL"):#C series AES key
