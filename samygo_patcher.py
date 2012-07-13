@@ -45,7 +45,8 @@
 #version = '0.25Beta' #Fat File Extractor & Injector code changed for code. Added Telnet support to LAxxB650 CHEAEAC series.
 #Need to test with SquashFS telnet after release!
 #version = '0.26' #Upgrade arfix-sh4 for T-RBYDEUC 1013.1 to version 1.2 (tom_van)
-version = '0.30' #Added C & D image decryption support. SamyGO function partitioned...
+#version = '0.30' #Added C & D image decryption support. SamyGO function partitioned...
+version = '0.31Beta' #Added E-Series (Echo.P) image decryption support, and prepare for other E-Series (Echo.B, X10, X9).
 import os
 import sys
 import binascii
@@ -894,6 +895,14 @@ def AESprepare( salt, secret='', firmware='' ):
 		elif firmware.startswith("T-MST4"):
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
 			sys.exit()
+		elif firmware.startswith("T-ECP"):
+			secret = "3EF6067262CF0C678598BFF22169D1F1EA57C284"
+		elif firmware.startswith("T-MST"):#10P & 9P
+			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
+			sys.exit()
+		elif firmware.startswith("B-ECB"):
+			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
+			sys.exit()
 		elif firmware.startswith("T-VAL"):#C series AES key
 			secret += "00001abc2010"
 		elif firmware.startswith("T-TDT"):
@@ -910,10 +919,15 @@ def AESprepare( salt, secret='', firmware='' ):
 
 	key = hashlib.md5()
 	iv = hashlib.md5()
-	key.update( sha_secret.hexdigest() + salt )
-	#key.hexdigest() - D_1
-	iv.update( key.digest() + sha_secret.hexdigest() + salt )
-	#iv.hexdigest() - D_2
+
+	if len( secret )==40:#E-Series uses binary pass
+		key.update( binascii.unhexlify(secret) + salt )
+		iv.update( key.digest() + binascii.unhexlify(secret) + salt )
+	else:
+		key.update( sha_secret.hexdigest() + salt )
+		#key.hexdigest() - D_1
+		iv.update( key.digest() + sha_secret.hexdigest() + salt )
+		#iv.hexdigest() - D_2
 
 	#openssl aes-128-cbc -d -in exe.img.sec -out exe.img -K e9e6627dc642a202bcf7bd6bdaaaa372 -iv b846d7ce24f89c6e160d455f8849c812
 	cip_aes = AES.new( key.digest(), AES.MODE_CBC, iv.digest() )
@@ -973,6 +987,9 @@ def SamsungSerie( firmware=''):
 	Bp=["T-CHLCIPDEUC","T-CHL5CIPDEUC","T-CHL6CIPDEUC","T-CHUCIPDEUC"]
 	C=["T-VALDEUC","T-VAL4DEUC","T-TDT5DAAC","T-MSX5DAAC","T-MSX5DEUC"]
 	D=["T-GASDEUC","T-GAS6DEUC","T-GAPDEUC","T-GAP8DEUC","T-MST4DEUC"]
+	Eb=["B-ECBHRDEUC"] #just preparation!!
+	Ep=["T-ECPDEUC","T-ECPAKUC"]
+	Ex=["T-MST10PDEUC"] #just preparation!!
 	if( firmware in A ):
 		return "A"
 	elif firmware in Bp:
@@ -984,6 +1001,12 @@ def SamsungSerie( firmware=''):
 			return "B"
 	elif firmware.startswith("T-VAL") or firmware.startswith("T-MSX") or firmware.startswith("T-TDT"): 
 		return "C"
+	elif firmware.startswith("B-ECB"):
+		return "Eb"
+	elif firmware.startswith("T-ECP"):
+		return "Ep"
+	elif firmware.startswith("T-MST10P"):
+		return "Ex"
 	elif firmware.startswith("T-GA") or firmware.startswith("T-MST"):
 		return "D"
 
@@ -999,7 +1022,7 @@ def DecryptAll( in_dir ):
 	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
 	files = os.listdir( fwdir )
 	files = [i for i in files if i.endswith('sec') or i.endswith('enc')]
-	if SamsungSerie(key[0]) in ('B+','C','D'):
+	if SamsungSerie(key[0]) in ('B+','C','D','Eb','Ep','Ex'):
 		encmode='CI+'
 	elif SamsungSerie(key[0]) in ('B'):
 		encmode='CI'
@@ -1098,10 +1121,15 @@ def EncryptAll( in_dir ):
 	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
 	files = ['Image','exe.img','appext.img','rootfs.img','appdata.img','boot.img','onboot.bin','u-boot.bin','uboot_env.bin','onw.bin','fnw.bin','tlib.img','cmm.img','rocommon.img','emanual.img','rwcommon.img']
 	files = [i for i in files if os.path.isfile(fwdir+os.path.sep+i)]
-	if SamsungSerie(key[0]) in ('B+','C','D'):
+	if SamsungSerie(key[0]) in ('B+','C','D','Eb','Ep','Ex'):
 		encmode='CI+'
 	elif SamsungSerie(key[0]) in ('B'):
 		encmode='CI'
+	
+	if SamsungSerie(key[0]) in ('Eb','Ep','Ex'):
+		print 'Not supported in public release, too dangerous!!!'
+		sys.exit()
+
 	print "FileS",files
 	if len(files) > 0:
 		if encmode == 'CI+':
@@ -1130,8 +1158,12 @@ def Encryptor(in_dir, encmode=''):
 	realdir = os.path.realpath( in_dir )
 	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
 	firmware=key[0]
-	if SamsungSerie(firmware) in ('C','D'):
+	if SamsungSerie(firmware) in ('C','D','Eb','Ep','Ex'):
 		encmode='CI+'
+
+	if SamsungSerie(key[0]) in ('Eb','Ep','Ex'):
+		print 'Not supported in public release, too dangerous!!!'
+		sys.exit()
 
 	if encmode != 'none':
 		print "Encrypting with ",
