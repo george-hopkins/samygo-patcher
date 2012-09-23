@@ -988,7 +988,8 @@ def SamsungSerie( firmware=''):
 	A=["T-RBYDEUC"]
 	B=["T-CHL7DEUC","T-CHL5DEUC","T-CHE7AUSC","T-CHL7DAUC","T-CHU7DAUC","T-CHU7DEUC"]
 	Bp=["T-CHLCIPDEUC","T-CHL5CIPDEUC","T-CHL6CIPDEUC","T-CHUCIPDEUC"]
-	BD=["B-FIRURDEUC","B-FIRBPEWWC","B-FIRHTBEUC","B-FIRHRDEUM"] #make also new type for BS...???
+	BDd=["B-FIRURDEUC","B-FIRHTBEUC","B-FIRHRDEUM"] #make also new type for BS...???
+	BDe=["B-FIRBPEWWC"] #e-series bd-player
 	C=["T-VALDEUC","T-VAL4DEUC","T-TDT5DAAC","T-MSX5DAAC","T-MSX5DEUC"]
 	D=["T-GASDEUC","T-GAS6DEUC","T-GAPDEUC","T-GAP8DEUC","T-MST4DEUC"]
 	Eb=["B-ECBHRDEUC"] #just preparation!!
@@ -1014,7 +1015,7 @@ def SamsungSerie( firmware=''):
 	elif firmware.startswith("T-GA") or firmware.startswith("T-MST"):
 		return "D"
 	elif firmware.startswith("B-FIR"):
-		return "BD"
+		return "BDd"
 
 def DecryptAll( in_dir ):
 	if not os.path.isdir( in_dir ):
@@ -1028,7 +1029,7 @@ def DecryptAll( in_dir ):
 	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
 	files = os.listdir( fwdir )
 	files = [i for i in files if i.endswith('sec') or i.endswith('enc')]
-	if SamsungSerie(key[0]) in ('B+','C','D','BD','Eb','Ep','Ex'):
+	if SamsungSerie(key[0]) in ('B+','C','D','BDd','Eb','Ep','Ex'):
 		encmode='CI+'
 	elif SamsungSerie(key[0]) in ('B'):
 		encmode='CI'
@@ -1128,12 +1129,12 @@ def EncryptAll( in_dir ):
 	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
 	files = ['Image','exe.img','appext.img','rootfs.img','appdata.img','boot.img','onboot.bin','u-boot.bin','uboot_env.bin','onw.bin','fnw.bin','tlib.img','cmm.img','rocommon.img','emanual.img','rwcommon.img']
 	files = [i for i in files if os.path.isfile(fwdir+os.path.sep+i)]
-	if SamsungSerie(key[0]) in ('B+','C','D','BD','Eb','Ep','Ex'):
+	if SamsungSerie(key[0]) in ('B+','C','D','BDd','Eb','Ep','Ex'):
 		encmode='CI+'
 	elif SamsungSerie(key[0]) in ('B'):
 		encmode='CI'
 	
-	if SamsungSerie(key[0]) in ('BD','Eb','Ep','Ex'):
+	if SamsungSerie(key[0]) in ('BDd','Eb','Ep','Ex'):
 		print 'Not supported in public release, too dangerous!!!'
 		sys.exit()
 
@@ -1165,10 +1166,10 @@ def Encryptor(in_dir, encmode=''):
 	realdir = os.path.realpath( in_dir )
 	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
 	firmware=key[0]
-	if SamsungSerie(firmware) in ('C','D','BD','Eb','Ep','Ex'):
+	if SamsungSerie(firmware) in ('C','D','BDd','Eb','Ep','Ex'):
 		encmode='CI+'
 
-	if SamsungSerie(key[0]) in ('BD','Eb','Ep','Ex'):
+	if SamsungSerie(key[0]) in ('BDd','Eb','Ep','Ex'):
 		print 'Not supported in public release, too dangerous!!!'
 		sys.exit()
 
