@@ -46,7 +46,8 @@
 #Need to test with SquashFS telnet after release!
 #version = '0.26' #Upgrade arfix-sh4 for T-RBYDEUC 1013.1 to version 1.2 (tom_van)
 #version = '0.30' #Added C & D image decryption support. SamyGO function partitioned...
-version = '0.31Beta' #Added E-Series (Echo.P) image decryption support, and prepare for other E-Series (Echo.B, X10, X9).
+#version = '0.31Beta' #Added E-Series (Echo.P) image decryption support, and prepare for other E-Series (Echo.B, X10, X9).
+version = '0.31BetaBlue' #Added support for B-FIR* not all tested!!!.
 import os
 import sys
 import binascii
@@ -892,6 +893,8 @@ def AESprepare( salt, secret='', firmware='' ):
 		elif firmware.startswith("T-MST5"):#T-MST5
 			secret = "SHWJUH:eceb2c14-db11-425e-9ebf-5f9607f0eb4b-3c38193e-751e-4719-8884-"
 			secret += "9e76322c0cec"
+		elif firmware.startswith("B-FIR"):#bd-6* really ok for all FIR*???
+			secret = "SHWJUH:db48ad51-c784-4f06-af57-1070a910c536-6a028bb5-e83e-45da-b326-a3a39ccba26c"
 		elif firmware.startswith("T-MST4"):
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
 			sys.exit()
@@ -985,6 +988,7 @@ def SamsungSerie( firmware=''):
 	A=["T-RBYDEUC"]
 	B=["T-CHL7DEUC","T-CHL5DEUC","T-CHE7AUSC","T-CHL7DAUC","T-CHU7DAUC","T-CHU7DEUC"]
 	Bp=["T-CHLCIPDEUC","T-CHL5CIPDEUC","T-CHL6CIPDEUC","T-CHUCIPDEUC"]
+	BD=["B-FIRURDEUC","B-FIRBPEWWC","B-FIRHTBEUC","B-FIRHRDEUM"] #make also new type for BS...???
 	C=["T-VALDEUC","T-VAL4DEUC","T-TDT5DAAC","T-MSX5DAAC","T-MSX5DEUC"]
 	D=["T-GASDEUC","T-GAS6DEUC","T-GAPDEUC","T-GAP8DEUC","T-MST4DEUC"]
 	Eb=["B-ECBHRDEUC"] #just preparation!!
@@ -1009,6 +1013,8 @@ def SamsungSerie( firmware=''):
 		return "Ex"
 	elif firmware.startswith("T-GA") or firmware.startswith("T-MST"):
 		return "D"
+	elif firmware.startswith("B-FIR"):
+		return "BD"
 
 def DecryptAll( in_dir ):
 	if not os.path.isdir( in_dir ):
@@ -1022,7 +1028,7 @@ def DecryptAll( in_dir ):
 	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
 	files = os.listdir( fwdir )
 	files = [i for i in files if i.endswith('sec') or i.endswith('enc')]
-	if SamsungSerie(key[0]) in ('B+','C','D','Eb','Ep','Ex'):
+	if SamsungSerie(key[0]) in ('B+','C','D','BD','Eb','Ep','Ex'):
 		encmode='CI+'
 	elif SamsungSerie(key[0]) in ('B'):
 		encmode='CI'
@@ -1084,6 +1090,7 @@ def Decryptor( in_dir ):
 		else:
 			print 'CRC Validation passed'
 
+	#add check that decryptor created .enc file or it was originaly shipped!!!!
 	elif os.path.isfile( realdir+os.path.sep+'image'+os.path.sep+'exe.img.enc' ):
 		encmode = 'CI'
 		targetfile = realdir+os.path.sep+'image'+os.path.sep+'exe.img.enc'
@@ -1121,12 +1128,12 @@ def EncryptAll( in_dir ):
 	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
 	files = ['Image','exe.img','appext.img','rootfs.img','appdata.img','boot.img','onboot.bin','u-boot.bin','uboot_env.bin','onw.bin','fnw.bin','tlib.img','cmm.img','rocommon.img','emanual.img','rwcommon.img']
 	files = [i for i in files if os.path.isfile(fwdir+os.path.sep+i)]
-	if SamsungSerie(key[0]) in ('B+','C','D','Eb','Ep','Ex'):
+	if SamsungSerie(key[0]) in ('B+','C','D','BD','Eb','Ep','Ex'):
 		encmode='CI+'
 	elif SamsungSerie(key[0]) in ('B'):
 		encmode='CI'
 	
-	if SamsungSerie(key[0]) in ('Eb','Ep','Ex'):
+	if SamsungSerie(key[0]) in ('BD','Eb','Ep','Ex'):
 		print 'Not supported in public release, too dangerous!!!'
 		sys.exit()
 
@@ -1158,10 +1165,10 @@ def Encryptor(in_dir, encmode=''):
 	realdir = os.path.realpath( in_dir )
 	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
 	firmware=key[0]
-	if SamsungSerie(firmware) in ('C','D','Eb','Ep','Ex'):
+	if SamsungSerie(firmware) in ('C','D','BD','Eb','Ep','Ex'):
 		encmode='CI+'
 
-	if SamsungSerie(key[0]) in ('Eb','Ep','Ex'):
+	if SamsungSerie(key[0]) in ('BD','Eb','Ep','Ex'):
 		print 'Not supported in public release, too dangerous!!!'
 		sys.exit()
 
