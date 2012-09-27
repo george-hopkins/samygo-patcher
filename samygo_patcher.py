@@ -48,7 +48,8 @@
 #version = '0.30' #Added C & D image decryption support. SamyGO function partitioned...
 #version = '0.31Beta' #Added E-Series (Echo.P) image decryption support, and prepare for other E-Series (Echo.B, X10, X9).
 #version = '0.31BetaBlue' #Added support for B-FIR* not all tested!!!.
-version = '0.32' #cleanup on bd-players.
+#version = '0.32' #cleanup on bd-players.
+version = '0.33' #Key for T-MST10P added.
 import os
 import sys
 import binascii
@@ -904,7 +905,9 @@ def AESprepare( salt, secret='', firmware='' ):
 			sys.exit()
 		elif firmware.startswith("T-ECP"):
 			secret = "3EF6067262CF0C678598BFF22169D1F1EA57C284"
-		elif firmware.startswith("T-MST"):#10P & 9P
+		elif firmware.startswith("T-MST10P"):
+			secret = "64643832616639333062653862323030363630326137666362653132333762383532643463616431"
+		elif firmware.startswith("T-MST"):# 9P
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
 			sys.exit()
 		elif firmware.startswith("B-ECB"):
@@ -927,7 +930,7 @@ def AESprepare( salt, secret='', firmware='' ):
 	key = hashlib.md5()
 	iv = hashlib.md5()
 
-	if len( secret )==40:#E-Series uses binary pass
+	if len( secret )==40 or firmware.startswith("T-MST10P"):#E-Series uses binary pass
 		key.update( binascii.unhexlify(secret) + salt )
 		iv.update( key.digest() + binascii.unhexlify(secret) + salt )
 	else:
