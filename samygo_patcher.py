@@ -49,7 +49,8 @@
 #version = '0.31Beta' #Added E-Series (Echo.P) image decryption support, and prepare for other E-Series (Echo.B, X10, X9).
 #version = '0.31BetaBlue' #Added support for B-FIR* not all tested!!!.
 #version = '0.32' #cleanup on bd-players.
-version = '0.33' #Key for T-MST10P added.
+#version = '0.33' #Key for T-MST10P added.
+version = '0.34' #Key for ECBHRDEUC, FIRBPEWW (BD-E8???, BD-E6???).
 import os
 import sys
 import binascii
@@ -895,10 +896,9 @@ def AESprepare( salt, secret='', firmware='' ):
 		elif firmware.startswith("T-MST5"):#T-MST5
 			secret = "SHWJUH:eceb2c14-db11-425e-9ebf-5f9607f0eb4b-3c38193e-751e-4719-8884-"
 			secret += "9e76322c0cec"
-		elif firmware.startswith("B-FIRB"):
-			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
-			sys.exit()
-		elif firmware.startswith("B-FIR"):#bd-6* really ok for all FIR*???
+		elif firmware.startswith("B-FIRB"):#tested with B-FIRBPEWWC 
+			secret = "d6442d-7b46b2f4-0f11-4623-af63-8bb0a0d54c80-a22fbe2c-1bb5-49cc-b194-25c0f2b870f4"
+		elif firmware.startswith("B-FIRU") or firmware.startswith("B-FIRH"):#bd-6* really ok for all FIR*???
 			secret = "SHWJUH:db48ad51-c784-4f06-af57-1070a910c536-6a028bb5-e83e-45da-b326-a3a39ccba26c"
 		elif firmware.startswith("T-MST4"):
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
@@ -906,13 +906,12 @@ def AESprepare( salt, secret='', firmware='' ):
 		elif firmware.startswith("T-ECP"):
 			secret = "3EF6067262CF0C678598BFF22169D1F1EA57C284"
 		elif firmware.startswith("T-MST10P"):
-			secret = "64643832616639333062653862323030363630326137666362653132333762383532643463616431"
+			secret = "b4c136-fbc93576-b3e8-4035-bf4e-ba4cb4ada1ac-f0d81cc4-8301-4832-bd60-f331295743ba"
 		elif firmware.startswith("T-MST"):# 9P
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
 			sys.exit()
 		elif firmware.startswith("B-ECB"):
-			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
-			sys.exit()
+			secret = "SHWJUH:8fb684a9-84c1-46cf-aa81-977bce241542-6db4c136-8540-4ee4-8704-d9cd18590d11"
 		elif firmware.startswith("T-VAL"):#C series AES key
 			secret += "00001abc2010"
 		elif firmware.startswith("T-TDT"):
@@ -930,7 +929,7 @@ def AESprepare( salt, secret='', firmware='' ):
 	key = hashlib.md5()
 	iv = hashlib.md5()
 
-	if len( secret )==40 or firmware.startswith("T-MST10P"):#E-Series uses binary pass
+	if len( secret )==40:#E-Series binary pass
 		key.update( binascii.unhexlify(secret) + salt )
 		iv.update( key.digest() + binascii.unhexlify(secret) + salt )
 	else:
