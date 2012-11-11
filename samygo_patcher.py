@@ -907,7 +907,7 @@ def AESprepare( salt, secret='', firmware='' ):
 			secret = "3EF6067262CF0C678598BFF22169D1F1EA57C284"
 		elif firmware.startswith("T-MST10P"):
 			secret = "b4c136-fbc93576-b3e8-4035-bf4e-ba4cb4ada1ac-f0d81cc4-8301-4832-bd60-f331295743ba"
-		elif firmware.startswith("T-MST"):# 9P
+		elif firmware.startswith("T-MST") or firmware.startswith("T-MSU"):# 9P
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
 			sys.exit()
 		elif firmware.startswith("B-ECB"):
@@ -997,7 +997,7 @@ def SamsungSerie( firmware=''):
 	BDd=["B-FIRURDEUC","B-FIRHTBEUC","B-FIRHRDEUM","B-FIRHRDEUC"] #make also new type for BS...???
 	BDe=["B-FIRBPEWWC"] #e-series bd-player
 	C=["T-VALDEUC","T-VAL4DEUC","T-TDT5DAAC","T-MSX5DAAC","T-MSX5DEUC"]
-	D=["T-GASDEUC","T-GAS6DEUC","T-GAPDEUC","T-GAP8DEUC","T-MST4DEUC"]
+	D=["T-GASDEUC","T-GAS6DEUC","T-GAPDEUC","T-GAP8DEUC","T-MST4DEUC", "T-MSU4DEUC"]
 	Eb=["B-ECBHRDEUC"] #just preparation!!
 	Ep=["T-ECPDEUC","T-ECPAKUC"]
 	Ex=["T-MST10PDEUC"] #just preparation!!
@@ -1018,7 +1018,7 @@ def SamsungSerie( firmware=''):
 		return "Ep"
 	elif firmware.startswith("T-MST10P"):
 		return "Ex"
-	elif firmware.startswith("T-GA") or firmware.startswith("T-MST"):
+	elif firmware.startswith("T-GA") or firmware.startswith("T-MST4") or firmware.startswith("T-MSU4") or firmware.startswith("T-MST5"):
 		return "D"
 	elif firmware.startswith("B-FIRU") or firmware.startswith("B-FIRH"):
 		return "BDd"
