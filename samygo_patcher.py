@@ -1071,7 +1071,6 @@ def DecryptAll( in_dir ):
 			else:
 				print 'CRC Validation passed'
 				print
-				print
 
 def Decryptor( in_dir ):
 	if not os.path.isdir( in_dir ):
@@ -1083,22 +1082,54 @@ def Decryptor( in_dir ):
 	key = open( realdir + os.path.sep + 'image' + os.path.sep + 'info.txt' , 'r' ).read().split(' ');
 	print "Firmware: ",key[0],'v'+key[1]
 	xorkey = ''
+	fwdir = os.path.realpath( in_dir + os.path.sep + 'image' + os.path.sep )
+	files = os.listdir( fwdir )
+	files = [i for i in files if i.endswith('exe.img.sec') or i.endswith('exe.img.enc')]
 	if os.path.isfile( realdir + os.path.sep + 'image' + os.path.sep + 'exe.img.sec' ):
 		encmode = 'CI+'
 		targetfile = realdir+os.path.sep+'image'+os.path.sep+'exe.img.sec'
-		print "AES Encrytped CI+ firmware detected."
-		print "Decrypting with AES..."
-		encfile = AESdec( targetfile, firmware=key[0] )
+		print "AES Encrypted CI+ firmware detected."
+		for f in files:
+			print "Processing file", f
+			if f.endswith('enc'):#maybe already decrypted sec file...
+#				encmode='CI'
+				print "ups, file alredy decrypted??? pls. manually cleanup, delete *.enc and *.img files in firmware directory"
+				return
+			if( encmode == 'CI+'):
+				print "Decrypting with AES..."
+				encfile = AESdec( fwdir + os.path.sep + f, firmware=key[0] )
+			else:
+				encfile = fwdir + os.path.sep + f
 		print
 		print "Decrypting with ",
-		decfile,md5digg,xorkey = xor( encfile )
+		decfile,md5digg,xorkey = xor( encfile,key[0] )
 		CRC = calculate_crc(decfile)
 		filevalid = open(realdir + os.path.sep +'image' + os.path.sep + 'validinfo.txt', 'r')
 		ValidCRC = filevalid.read()
 		filevalid.close()
 		CRCstart = ValidCRC.find('exe.img_')+8
 		ValidCRC = int(ValidCRC[CRCstart:CRCstart+8], 16)
+		
+		if CRC != ValidCRC:
+			print 'Error on Decryption'
+			sys.exit()
+		else:
+			print 'CRC Validation passed'
+			print
+			
+	elif os.path.isfile( realdir + os.path.sep + 'image' + os.path.sep + 'exe.img.enc' ):
+		encfile = fwdir + os.path.sep + 'exe.img.enc'
+		print
+		print "Decrypting with ",
+		decfile,md5digg,xorkey = xor( encfile,key[0] )
+		CRC = calculate_crc(decfile)
+		filevalid = open(realdir + os.path.sep +'image' + os.path.sep + 'validinfo.txt', 'r')
+		ValidCRC = filevalid.read()
+		filevalid.close()
+		CRCstart = ValidCRC.find('exe.img_')+8
+		ValidCRC = int(ValidCRC[CRCstart:CRCstart+8], 16)		
 
+		
 		if CRC != ValidCRC:
 			print 'Error on Decryption'
 			sys.exit()
