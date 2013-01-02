@@ -898,7 +898,9 @@ def AESprepare( salt, secret='', firmware='' ):
 			secret += "9e76322c0cec"
 		elif firmware.startswith("B-FIRB"):#tested with B-FIRBPEWWC 
 			secret = "d6442d-7b46b2f4-0f11-4623-af63-8bb0a0d54c80-a22fbe2c-1bb5-49cc-b194-25c0f2b870f4"
-		elif firmware.startswith("B-FIRU") or firmware.startswith("B-FIRH"):#bd-6* really ok for all FIR*???
+		elif firmware.startswith("B-FIRHT7"):#tested with B-FIRHT7WWC (doesn`t work on B-FIRHTSWWC!) 
+			secret = "d6442d-7b46b2f4-0f11-4623-af63-8bb0a0d54c80-a22fbe2c-1bb5-49cc-b194-25c0f2b870f4"
+		elif firmware.startswith("B-FIRU") or firmware.startswith("B-FIRH"):#bd-6* really ok for all FIR*??? NO, not ok for B-FIRHT7WWC!!!
 			secret = "SHWJUH:db48ad51-c784-4f06-af57-1070a910c536-6a028bb5-e83e-45da-b326-a3a39ccba26c"
 		elif firmware.startswith("T-MST4"):
 			print "Error : Secret AES key cannot be calculated in this version of SamyGO Firmware Patcher."
@@ -1046,6 +1048,10 @@ def DecryptAll( in_dir ):
 			print "AES Encrytped CI+ firmware detected."
 		for f in files:
 			print "Processing file", f
+			if f.endswith('enc'):#maybe already decrypted sec file...
+				encmode='CI'
+				print "ups, file alredy decrypted??? pls. manually cleanup, delete *.enc and *.img files in firmware directory"
+				return
 			if( encmode == 'CI+'):
 				encfile = AESdec( fwdir + os.path.sep + f, firmware=key[0] )
 			else:
